@@ -86,22 +86,44 @@ function deskTop(t, x, y, w, h) {
   t.r(x, y + h - 4, w, 4, PAL.deskSh); // FRONT edge (thickness)
   t.r(x, y + h - 1, w, 1, PAL.deskEdge);
 }
-// A single workstation desk tile, oriented "front edge at the bottom" (the
-// agent sits below). part = which atlas column (l/m/r) for side detail + seam.
+// A single workstation desk tile, oriented "front face at the bottom" (the
+// agent sits below). Built with real cubicle structure: back partition + posts,
+// top surface, distinct front face, side divider panels, legs, contact shadow.
+// part = which atlas column (l/m/r) → side detail / seam. 4+ shade levels.
 function wsDesk(t, x, w, part) {
-  // back partition panel (cubicle wall) — top
-  t.r(x, 0, w, 6, PAL.metal);
+  const POST = '#363d47'; // partition post (darkest)
+  const LEG = '#474d57'; // desk legs
+  const LIP = '#50565f'; // dark front lip
+  // floor contact shadow under the desk front
+  t.r(x, 30, w, 2, '#000000', 34);
+  // front legs — a centre leg on every tile + corner legs on the ends, drawn
+  // as dark posts down the front face so they read as table legs.
+  t.r(x + Math.round(w / 2) - 1, 24, 3, 8, LEG);
+  if (part === 'l') t.r(x + 2, 24, 3, 8, LEG);
+  if (part === 'r') t.r(x + w - 5, 24, 3, 8, LEG);
+  // back partition panel + vertical posts
+  t.r(x, 0, w, 5, PAL.metal);
   t.r(x, 0, w, 2, PAL.metalHi);
-  t.r(x, 6, w, 2, '#000000', 30); // panel cast shadow onto desk
-  // desk surface
-  t.r(x, 8, w, 18, PAL.desk);
-  t.r(x, 8, w, 2, PAL.deskHi);
-  // thick FRONT edge (toward the seated agent)
-  t.r(x, 26, w, 5, PAL.deskSh);
-  t.r(x, 31, w, 1, PAL.deskEdge);
-  if (part === 'l') t.r(x, 8, 2, 18, PAL.grain); // lit left side
-  if (part === 'r') t.r(x + w - 2, 8, 2, 18, PAL.deskSh); // shadow right side
-  if (part === 'm') t.r(x + w / 2, 9, 1, 16, PAL.grain); // per-seat seam
+  t.r(x, 0, 2, 8, POST); // post at tile-left junction
+  if (part === 'r') t.r(x + w - 2, 0, 2, 8, POST);
+  t.r(x, 5, w, 1, '#000000', 28); // partition cast shadow onto desk
+  // desk top surface (highlight + base)
+  t.r(x, 6, w, 18, PAL.desk);
+  t.r(x, 6, w, 2, PAL.deskHi);
+  // side divider panels (cubicle sides) + lit/shadow edges
+  if (part === 'l') {
+    t.r(x, 6, 3, 23, PAL.metal);
+    t.r(x, 6, 3, 2, PAL.metalHi);
+    t.r(x + 3, 7, 1, 15, PAL.grain);
+  }
+  if (part === 'r') {
+    t.r(x + w - 3, 6, 3, 23, PAL.metalSh);
+    t.r(x + w - 4, 7, 1, 15, PAL.deskSh);
+  }
+  if (part === 'm') t.r(x + w / 2, 7, 1, 15, PAL.grain); // per-seat seam
+  // front face (distinct shadow colour) + dark lip
+  t.r(x, 24, w, 5, PAL.deskSh);
+  t.r(x, 29, w, 1, LIP);
 }
 function monitor(t, x, y, scr) {
   const s = SCREENS[scr % SCREENS.length];
