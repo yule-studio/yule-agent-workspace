@@ -33,7 +33,7 @@ const PAL = {
   desk: '#aab0b8', deskHi: '#c2c7ce', deskSh: '#7c828b', deskEdge: '#666c75', grain: '#9aa0a8',
   // material-separated workstation tones: laminate top / dark front / blue-gray
   // fabric partition / dark slate posts / graphite legs (so structure reads).
-  deskTop: '#c0bcb2', deskTopHi: '#d6d2c8', deskTopGrain: '#b0aca2',
+  deskTop: '#d6d0c1', deskTopHi: '#e8e3d5', deskTopGrain: '#c0baab', // pale cream laminate (ref)
   deskFront: '#5f656f', deskSide: '#8b9099', deskLip: '#4b505a',
   partPanel: '#6f7a8f', partPanelHi: '#828ea3', partPanelSh: '#566072',
   partPost: '#2c333d', leg: '#33383f',
@@ -108,41 +108,42 @@ function deskTop(t, x, y, w, h) {
 // part = which atlas column (l/m/r) → side detail / seam. 4+ shade levels.
 // Workstation desk at FULL output resolution (64px cell). x,w are OUTPUT px.
 // Front face at bottom (agent sits below); V-flip in the map for the up-row.
-function wsDesk(t, x, w, part, panel = PAL.partPanel, panelHi = PAL.partPanelHi) {
-  const POST = PAL.partPost, LEG = PAL.leg, mid = Math.round(w / 2);
-  // The partition is a low cubicle WALL standing at the very back; a transparent
-  // gap (y13..18, carpet shows through) separates it from the desk surface so it
-  // reads as a wall behind the desk — not a band glued to the desk top.
-  t.raw(x + 1, 60, w - 1, 4, '#1b2230', 42); // desk front floor contact shadow
-  // legs (graphite) — centre on every tile + corner legs on the ends
-  t.raw(x + mid - 2, 49, 4, 15, LEG); t.raw(x + mid - 2, 49, 1, 15, '#454b54');
-  if (part === 'l') t.raw(x + 5, 49, 4, 15, LEG);
-  if (part === 'r') t.raw(x + w - 9, 49, 4, 15, LEG);
-  // back partition WALL (short) + top rail + weave
-  t.raw(x, 0, w, 8, panel);
-  t.raw(x, 0, w, 3, panelHi);
-  for (let fx = 2; fx < w; fx += 4) t.raw(x + fx, 3, 1, 4, PAL.partPanelSh); // weave
-  // vertical posts (columns) holding the partition ends, extending into the gap
-  t.raw(x, 0, 4, 14, POST);
-  if (part === 'r') t.raw(x + w - 4, 0, 4, 14, POST);
-  // cubicle-INTERIOR strip (shadowed floor between the back wall and the desk) —
-  // the breathing space that makes the partition read as a wall standing behind.
-  t.raw(x, 11, w, 7, '#5f6772');
-  t.raw(x, 11, w, 2, '#454c57'); // partition base shadow (depth)
-  t.raw(x, 16, w, 2, '#6b7480'); // subtle lift toward the desk's back edge
-  // desk LAMINATE top + highlight + grain
-  t.raw(x, 18, w, 30, PAL.deskTop);
-  t.raw(x, 18, w, 4, PAL.deskTopHi);
-  for (const gy of [25, 32, 39, 45]) t.raw(x + 4, gy, w - 8, 1, PAL.deskTopGrain);
-  // side divider panels wrap partition→front; sit slightly behind the desk
-  // surface (a thin shadow gap between the divider and the top)
-  if (part === 'l') { t.raw(x, 12, 4, 50, panel); t.raw(x, 12, 4, 3, panelHi); t.raw(x + 4, 18, 1, 30, '#1b2230', 34); }
-  if (part === 'r') { t.raw(x + w - 4, 12, 4, 50, PAL.partPanelSh); t.raw(x + w - 5, 18, 1, 30, '#1b2230', 34); }
-  if (part === 'm') t.raw(x + mid, 20, 1, 28, PAL.deskTopGrain); // per-seat seam
-  // front face (dark cool) + lip — clearly darker than the top
-  t.raw(x, 48, w, 10, PAL.deskFront);
-  t.raw(x, 48, w, 1, '#6b727c');
-  t.raw(x, 58, w, 2, PAL.deskLip);
+// Reference-style workstation: a CREAM laminate desk with a low dark BACK SHELF
+// holding papers + a name plate, thin visible legs, and a clutter-friendly top.
+// x,w OUTPUT px. Agent sits below (front at bottom); V-flip in map for up-row.
+function wsDesk(t, x, w, part, top = PAL.deskTop, topHi = PAL.deskTopHi) {
+  const mid = Math.round(w / 2);
+  // front floor contact shadow
+  t.raw(x + 1, 61, w - 1, 3, '#1b2230', 42);
+  // thin legs (front) — centre + ends, clearly visible against the floor
+  t.raw(x + mid - 1, 54, 3, 10, '#2f343b');
+  if (part === 'l') t.raw(x + 5, 54, 3, 10, '#2f343b');
+  if (part === 'r') t.raw(x + w - 8, 54, 3, 10, '#2f343b');
+  // BACK SHELF — low dark ledge (wall shelf) + top highlight + front shadow
+  t.raw(x, 0, w, 9, '#3b424c');
+  t.raw(x, 0, w, 2, '#525a66');
+  t.raw(x, 9, w, 2, '#1b2230', 38); // shelf shadow onto interior
+  t.raw(x, 0, 3, 11, '#262c34'); // end post
+  if (part === 'r') t.raw(x + w - 3, 0, 3, 11, '#262c34');
+  // shelf contents vary per tile: name plate (centre) / papers / box
+  if (part === 'm') { t.raw(x + mid - 10, 2, 20, 5, '#21262d'); t.raw(x + mid - 8, 3, 16, 2, '#9fb0c4'); } // name plate
+  else if (part === 'l') { t.raw(x + 6, 2, 11, 6, PAL.paper); for (let i = 0; i < 2; i++) t.raw(x + 8, 4 + i * 2, 7, 1, PAL.paperLn); t.raw(x + 20, 3, 7, 5, '#c9cdd4'); }
+  else { t.raw(x + w - 17, 3, 9, 5, PAL.box); t.raw(x + w - 17, 3, 9, 1, PAL.boxHi); t.raw(x + w - 28, 2, 10, 6, PAL.paper); }
+  // cubicle-interior strip (shadowed floor between shelf and desk = depth)
+  t.raw(x, 11, w, 4, '#5f6772');
+  t.raw(x, 11, w, 1, '#454c57');
+  // desk CREAM laminate top + highlight + grain
+  t.raw(x, 15, w, 31, top);
+  t.raw(x, 15, w, 4, topHi);
+  for (const gy of [23, 30, 37, 43]) t.raw(x + 4, gy, w - 8, 1, PAL.deskTopGrain);
+  // thin side edges
+  if (part === 'l') t.raw(x, 15, 2, 31, PAL.deskSide);
+  if (part === 'r') t.raw(x + w - 2, 15, 2, 31, PAL.deskFront);
+  if (part === 'm') t.raw(x + mid, 17, 1, 27, PAL.deskTopGrain); // per-seat seam
+  // front face (dark cool) + lip
+  t.raw(x, 46, w, 8, PAL.deskFront);
+  t.raw(x, 46, w, 1, '#7a818c');
+  t.raw(x, 53, w, 1, PAL.deskLip);
 }
 // monitor at full 64px res: arm/stand/base + bezel + screen UI + highlight.
 function monitor(t, cx, cy, scr) {
@@ -232,15 +233,15 @@ const TILES = [
   ['desk_m', (t) => wsDesk(t, 0, TS, 'm')],
   ['desk_r', (t) => wsDesk(t, 0, 52, 'r')],
   ['desk_single', (t) => { deskTop(t, 3, 6, 26, 20); }],
-  // desk variant 2 — deeper slate-blue partition (seeded per pod for variety)
-  ['desk2_l', (t) => wsDesk(t, 12, 52, 'l', '#566273', '#6a7488')],
-  ['desk2_m', (t) => wsDesk(t, 0, TS, 'm', '#566273', '#6a7488')],
-  ['desk2_r', (t) => wsDesk(t, 0, 52, 'r', '#566273', '#6a7488')],
+  // desk variant 2 — cooler grey laminate top (seeded per pod for variety)
+  ['desk2_l', (t) => wsDesk(t, 12, 52, 'l', '#c9c7bf', '#dedcd1')],
+  ['desk2_m', (t) => wsDesk(t, 0, TS, 'm', '#c9c7bf', '#dedcd1')],
+  ['desk2_r', (t) => wsDesk(t, 0, 52, 'r', '#c9c7bf', '#dedcd1')],
   // desk gear (objects layer; full 64px raw detail) — monitor variants
-  ['monitor_a', (t) => monitor(t, 16, 8, 0)],
-  ['monitor_b', (t) => monitor(t, 16, 8, 1)],
-  ['monitor_c', (t) => monitor(t, 16, 8, 2)],
-  ['monitor_d', (t) => monitor(t, 16, 8, 5)],
+  ['monitor_a', (t) => monitor(t, 16, 11, 0)],
+  ['monitor_b', (t) => monitor(t, 16, 11, 1)],
+  ['monitor_c', (t) => monitor(t, 16, 11, 2)],
+  ['monitor_d', (t) => monitor(t, 16, 11, 5)],
   ['monitor_dual', (t) => { t.raw(6, 34, 52, 3, '#000000', 32); t.raw(26, 30, 12, 4, PAL.bezel); t.raw(18, 34, 28, 3, PAL.bezel); t.raw(2, 4, 28, 24, PAL.bezel); t.raw(2, 4, 28, 3, PAL.bezelHi); screenUI(t, 4, 7, 24, 18, SCREENS[0], 0); t.raw(34, 4, 28, 24, PAL.bezel); t.raw(34, 4, 28, 3, PAL.bezelHi); screenUI(t, 36, 7, 24, 18, SCREENS[3], 2); }],
   ['monitor_vert', (t) => { t.raw(20, 44, 24, 3, '#000000', 32); t.raw(28, 38, 8, 6, PAL.bezel); t.raw(22, 44, 20, 3, PAL.bezel); t.raw(18, 2, 28, 38, PAL.bezel); t.raw(18, 2, 28, 3, PAL.bezelHi); screenUI(t, 20, 5, 24, 32, SCREENS[1], 1); }],
   ['monitor_large', (t) => { t.raw(4, 32, 56, 3, '#000000', 34); t.raw(28, 28, 8, 5, PAL.bezel); t.raw(16, 32, 32, 3, PAL.bezel); t.raw(2, 2, 60, 26, PAL.bezel); t.raw(2, 2, 60, 3, PAL.bezelHi); screenUI(t, 5, 5, 54, 20, SCREENS[3], 2); }],
