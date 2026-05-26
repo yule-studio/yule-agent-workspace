@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   id                      TEXT PRIMARY KEY,
   task_id                 TEXT NOT NULL REFERENCES tasks(id),
   role                    TEXT NOT NULL,
+  agent_id                TEXT,
+  group_id                TEXT,
   state                   TEXT NOT NULL,
   prior_state             TEXT,
   runtime_mode            TEXT NOT NULL,
@@ -66,6 +68,14 @@ CREATE TABLE IF NOT EXISTS transitions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_transitions_session ON transitions(session_id);
+
+CREATE TABLE IF NOT EXISTS meetings (
+  group_id     TEXT PRIMARY KEY,
+  topic        TEXT NOT NULL,
+  state        TEXT,
+  participants TEXT NOT NULL,
+  created_at   TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS token_usage (
   day    TEXT NOT NULL,

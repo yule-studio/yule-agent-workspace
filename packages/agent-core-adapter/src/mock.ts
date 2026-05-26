@@ -6,8 +6,9 @@
  * It does NOT pretend to do real reasoning. It returns plausible transitions +
  * small token counts so the state machine, budgets, and UI can be exercised.
  */
-import type { StepKind } from '@yule/shared-types';
+import type { StepKind, StudioAgent } from '@yule/shared-types';
 import type { AdapterHealth, AgentCoreAdapter, AgentStepRequest, AgentStepResult } from './contract.js';
+import { defaultRoster } from './roster.js';
 
 /** Deterministic pseudo-token cost per step kind (keeps demos affordable). */
 const STEP_COST: Record<StepKind, number> = {
@@ -26,6 +27,10 @@ export class MockAgentCoreAdapter implements AgentCoreAdapter {
 
   async health(): Promise<AdapterHealth> {
     return { ok: true, mode: 'mock', detail: 'mock adapter — offline, deterministic' };
+  }
+
+  async listAgents(): Promise<StudioAgent[]> {
+    return defaultRoster();
   }
 
   async runStep(req: AgentStepRequest): Promise<AgentStepResult> {

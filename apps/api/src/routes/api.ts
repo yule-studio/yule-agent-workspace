@@ -59,13 +59,18 @@ export function registerApiRoutes(app: FastifyInstance, svc: WorkspaceService): 
   });
 
   app.get('/api/status', async () => svc.status());
-  app.get('/api/agents', async () => ({ agents: svc.agentPresence() }));
 
-  app.get('/api/agents/:role', async (req) => {
+  // One entry per registry agent (dynamic — not a fixed list of roles) + the
+  // active meetings. Dashboard and pixel office both read from here.
+  app.get('/api/agents', async () => ({ agents: svc.agentViews(), meetings: svc.meetings() }));
+
+  app.get('/api/agents/by-role/:role', async (req) => {
     const role = roleEnum.parse((req.params as { role: string }).role);
-    const presence = svc.agentPresence().find((p) => p.role === role);
-    const tasks = svc.listTasks().filter((t) => t.role === role);
-    return { presence, tasks };
+    return {
+      role,
+      agents: svc.agentViews().filter((a) => a.role === role),
+      tasks: svc.listTasks().filter((t) => t.role === role),
+    };
   });
 
   app.get('/api/tasks', async () => ({ tasks: svc.listTasks() }));

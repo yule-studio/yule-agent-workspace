@@ -70,6 +70,33 @@ async function seed() {
   // simulate getting blocked during execution
   svc.applyTransition(prodSession.id, 'block', 'seed', 'waiting on design tokens from Figma');
 
+  // 5. Two more engineering tasks → different engineers, mid-work (coding / reviewing).
+  for (const [title, advances] of [
+    ['Add /metrics endpoint', 1], // -> executing (coding)
+    ['Refactor session store', 2], // -> reviewing
+  ] as const) {
+    const t = svc.createTask({ title, description: title, source: 'github', role: 'engineering' });
+    const s = svc.openSession(t.task.id).session;
+    svc.applyTransition(s.id, 'submit', 'seed');
+    await svc.runToGate(s.id, 'seed'); // awaiting_approval
+    svc.decide(s.id, 'approved', 'operator', 'workspace');
+    for (let i = 0; i < advances; i++) await svc.advance(s.id, 'seed');
+  }
+
+  // 6. A meeting — several agents gather in the meeting room (structure works
+  //    even without a backing session; participants are registry agent ids).
+  svc.setMeeting(
+    'standup-1',
+    'Sprint standup',
+    [
+      'planning-agent',
+      'engineering-agent/tech-lead',
+      'product-agent/product-manager',
+      'engineering-agent/qa-engineer',
+    ],
+    'planning',
+  );
+
   const status = svc.status();
   app.log.info({ status }, 'seed complete');
   console.log('\nSeeded workspace:');

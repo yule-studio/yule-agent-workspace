@@ -50,6 +50,10 @@ export interface Session {
   id: string;
   taskId: string;
   role: AgentRole;
+  /** Specific agent assigned to run this session (registry id). */
+  agentId: string | null;
+  /** Meeting group this session belongs to, if any. */
+  groupId: string | null;
   state: SessionState;
   /** Where to return to after `unblock`. Set when entering `blocked`. */
   priorState: SessionState | null;

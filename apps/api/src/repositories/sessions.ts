@@ -10,15 +10,17 @@ export class SessionRepo {
   insert(s: Session): Session {
     this.db
       .prepare(
-        `INSERT INTO sessions (id, task_id, role, state, prior_state, runtime_mode, approval_json,
+        `INSERT INTO sessions (id, task_id, role, agent_id, group_id, state, prior_state, runtime_mode, approval_json,
            budget_cap, budget_used, budget_escalation_ratio, budget_escalated,
            fp_diff, fp_issue, snapshot_json, created_at, updated_at, closed_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       )
       .run(
         s.id,
         s.taskId,
         s.role,
+        s.agentId,
+        s.groupId,
         s.state,
         s.priorState,
         s.runtimeMode,
@@ -60,12 +62,14 @@ export class SessionRepo {
   save(s: Session): Session {
     this.db
       .prepare(
-        `UPDATE sessions SET state = ?, prior_state = ?, runtime_mode = ?, approval_json = ?,
+        `UPDATE sessions SET agent_id = ?, group_id = ?, state = ?, prior_state = ?, runtime_mode = ?, approval_json = ?,
            budget_cap = ?, budget_used = ?, budget_escalation_ratio = ?, budget_escalated = ?,
            fp_diff = ?, fp_issue = ?, snapshot_json = ?, updated_at = ?, closed_at = ?
          WHERE id = ?`,
       )
       .run(
+        s.agentId,
+        s.groupId,
         s.state,
         s.priorState,
         s.runtimeMode,

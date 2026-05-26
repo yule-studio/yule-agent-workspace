@@ -56,6 +56,8 @@ export function rowToSession(r: Row): Session {
     id: str(r.id),
     taskId: str(r.task_id),
     role: str(r.role) as AgentRole,
+    agentId: optStr(r.agent_id),
+    groupId: optStr(r.group_id),
     state: str(r.state) as SessionState,
     priorState: optStr(r.prior_state) as SessionState | null,
     runtimeMode: str(r.runtime_mode) as RuntimeMode,

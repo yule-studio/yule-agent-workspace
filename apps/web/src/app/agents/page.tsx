@@ -1,39 +1,56 @@
 'use client';
 import Link from 'next/link';
-import { api } from '@/lib/api';
-import { useLive } from '@/lib/live';
+import { useAgents } from '@/lib/live';
 import { ConnectionDot } from '@/components/Nav';
 import { StateBadge, ModePill } from '@/components/StateBadge';
-import { AGENT_ROLE_LABEL, RUNTIME_MODE_PROFILE, type AgentPresence } from '@yule/shared-types';
+import { AGENT_ROLE_LABEL, AGENT_ROLES, type AgentRole, type AgentView } from '@yule/shared-types';
 
 export default function Agents() {
-  const { data } = useLive<{ agents: AgentPresence[] }>(
-    () => api.agents(),
-    ['agent.presence', 'session.transition'],
+  const { data } = useAgents();
+  const agents = data?.agents ?? [];
+  const byRole = AGENT_ROLES.map((r) => ({ role: r, items: agents.filter((a) => a.role === r) })).filter(
+    (g) => g.items.length > 0,
   );
+
   return (
     <div>
       <div className="page-head">
-        <h2>Agents</h2>
+        <h2>Agents — {agents.length} registered</h2>
         <ConnectionDot />
       </div>
-      <div className="grid cols-4">
-        {(data?.agents ?? []).map((a) => (
-          <Link key={a.role} href={`/agents/${a.role}`} className="card" style={{ color: 'inherit' }}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong>{AGENT_ROLE_LABEL[a.role]}</strong>
-              <ModePill mode={a.mode} />
-            </div>
-            <div style={{ margin: '10px 0' }}>
-              <StateBadge state={a.state} />
-            </div>
-            <p className="small muted" style={{ minHeight: 30 }}>
-              {a.statusLine ?? RUNTIME_MODE_PROFILE[a.mode].description}
-            </p>
-            <span className="small mono muted">{a.tokensToday.toLocaleString()} tok today</span>
-          </Link>
-        ))}
-      </div>
+      {byRole.map((g) => (
+        <div key={g.role} style={{ marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 14 }}>
+            <Link href={`/agents/${g.role}`}>{AGENT_ROLE_LABEL[g.role as AgentRole]}</Link>{' '}
+            <span className="small muted">{g.items.length}</span>
+          </h3>
+          <div className="grid cols-4">
+            {g.items.map((a) => (
+              <AgentCard key={a.id} a={a} />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
+}
+
+function AgentCard({ a }: { a: AgentView }) {
+  const inner = (
+    <div className="card" style={{ color: 'inherit' }}>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <strong>{a.name}</strong>
+        <ModePill mode={a.mode} />
+      </div>
+      <div className="small muted" style={{ marginBottom: 8 }}>
+        {a.title}
+      </div>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <StateBadge state={a.state} />
+        <span className="small muted">{a.activity}</span>
+      </div>
+      {a.statusLine && <p className="small muted" style={{ marginBottom: 0 }}>{a.statusLine}</p>}
+    </div>
+  );
+  return a.currentSessionId ? <Link href={`/sessions/${a.currentSessionId}`}>{inner}</Link> : inner;
 }

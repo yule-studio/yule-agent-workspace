@@ -10,6 +10,7 @@ import type { ApiConfig } from './config.js';
 import { openDb, type Db } from './db/connection.js';
 import { EventBus } from './events/bus.js';
 import { EventRepo } from './repositories/events.js';
+import { MeetingRepo } from './repositories/meetings.js';
 import { SessionRepo } from './repositories/sessions.js';
 import { TaskRepo } from './repositories/tasks.js';
 import { TransitionRepo } from './repositories/transitions.js';
@@ -35,10 +36,13 @@ export async function buildApp(config: ApiConfig): Promise<Built> {
     transitions: new TransitionRepo(db),
     usage: new UsageRepo(db),
     events,
+    meetings: new MeetingRepo(db),
   };
   const bus = new EventBus(events);
   const adapter = createAdapter(config.adapter);
-  const svc = new WorkspaceService(repos, bus, adapter, config);
+  // Load the dynamic agent registry from the engine adapter at boot.
+  const registry = await adapter.listAgents();
+  const svc = new WorkspaceService(repos, bus, adapter, config, registry);
 
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
   await app.register(cors, { origin: [config.webOrigin, 'http://localhost:3000'], credentials: true });
