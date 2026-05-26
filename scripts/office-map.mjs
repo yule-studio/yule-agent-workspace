@@ -1,16 +1,17 @@
 /**
- * Composes a Tiled-format (.tmj) office map from the generated tileset. Pure
- * data: writes tile GIDs into layer arrays (floor / walls / furniture / objects
- * / overhead) and object layers (seats / collisions / pois / spawns). Flip bits
- * (standard Tiled high bits) reuse corner/edge tiles. Consumed by the canvas
- * tilemap renderer and the seat-allocation overlay. Layout is deliberately
- * COMPACT — packed pods + adjacent rooms, no large empty floor.
+ * Composes a Tiled-format (.tmj) office map from the generated tileset. The
+ * office is an IRREGULAR (L / Γ) building silhouette sitting in black void —
+ * NOT a filled rectangle. An auto wall-ring outlines the footprint with thick
+ * exterior walls; interior partitions (wall_inner) + door gaps carve small
+ * rooms (meeting, tech-lead office, storage, lounge); corridors connect them.
+ * Desks are facing 2-row pods. Rooms / walls / furniture / seats are all baked
+ * here, like a real game tilemap. Consumed by the canvas renderer + overlay.
  */
 const FLIP_H = 0x80000000;
 const FLIP_V = 0x40000000;
 
 export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
-  const W = 27, H = 16;
+  const W = 32, H = 22;
   const g = (n) => {
     if (nameToGid[n] == null) throw new Error(`unknown tile ${n}`);
     return nameToGid[n];
@@ -33,29 +34,31 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   const accentSlot = (c, r) => accents.push({ id: oid++, name: '', x: px(c) + TS / 2, y: px(r) + TS / 2, width: 0, height: 0, point: true });
   const collide = (c, r, wc = 1, hr = 1) => collisions.push({ id: oid++, name: '', x: px(c), y: px(r), width: wc * TS, height: hr * TS });
 
-  // ── floor: carpet everywhere, deterministic variation ──
+  // ── footprint: L / Γ silhouette (tall left block + top-right wing) ──
+  const inside = (c, r) => (c >= 2 && c <= 20 && r >= 2 && r <= 20) || (c >= 21 && c <= 30 && r >= 2 && r <= 9);
+  const edge = (c, r) => !inside(c - 1, r) || !inside(c + 1, r) || !inside(c, r - 1) || !inside(c, r + 1);
   const carpet = [g('floor_carpet_a'), g('floor_carpet_b'), g('floor_carpet_c')];
-  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) floor[idx(c, r)] = carpet[(c * 7 + r * 13) % 3];
-  const tileRoom = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) floor[idx(c, r)] = ((c + r) % 2 ? g('floor_tile_b') : g('floor_tile_a')); };
-  const corridorRow = (r, c0, c1) => { for (let c = c0; c <= c1; c++) floor[idx(c, r)] = g('floor_corridor'); };
-  const corridorCol = (c, r0, r1) => { for (let r = r0; r <= r1; r++) floor[idx(c, r)] = g('floor_corridor'); };
+  for (let r = 0; r < H; r++)
+    for (let c = 0; c < W; c++) {
+      if (!inside(c, r)) continue; // void → transparent (black)
+      if (edge(c, r)) { set(walls, c, r, g('wall')); collide(c, r); }
+      else floor[idx(c, r)] = carpet[(c * 7 + r * 13) % 3];
+    }
 
-  // ── perimeter walls + a south-face strip under the top wall ──
-  for (let c = 0; c < W; c++) { set(walls, c, 0, g('wall')); set(walls, c, H - 1, g('wall')); }
-  for (let r = 0; r < H; r++) { set(walls, 0, r, g('wall')); set(walls, W - 1, r, g('wall')); }
-  for (let c = 1; c < W - 1; c++) set(walls, c, 1, g('wall_face'));
-  for (let c = 0; c < W; c++) { collide(c, 0); collide(c, H - 1); }
-  for (let r = 1; r < H - 1; r++) { collide(0, r); collide(W - 1, r); }
-
-  const wallRect = (c0, r0, c1, r1, doors = []) => {
-    const isDoor = (c, r) => doors.some((d) => c >= d.c0 && c <= d.c1 && r >= d.r0 && r <= d.r1);
-    for (let c = c0; c <= c1; c++) { if (!isDoor(c, r0)) { set(walls, c, r0, g('wall_inner')); collide(c, r0); } if (!isDoor(c, r1)) { set(walls, c, r1, g('wall_inner')); collide(c, r1); } }
-    for (let r = r0 + 1; r < r1; r++) { if (!isDoor(c0, r)) { set(walls, c0, r, g('wall_inner')); collide(c0, r); } if (!isDoor(c1, r)) { set(walls, c1, r, g('wall_inner')); collide(c1, r); } }
+  const tileRoom = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (inside(c, r)) floor[idx(c, r)] = ((c + r) % 2 ? g('floor_tile_b') : g('floor_tile_a')); };
+  const corridor = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (inside(c, r) && !walls[idx(c, r)]) floor[idx(c, r)] = g('floor_corridor'); };
+  // straight interior wall with door gaps (cells listed in doors are skipped)
+  const wallLine = (cells, doors = []) => {
+    for (const [c, r] of cells) {
+      if (doors.some(([dc, dr]) => dc === c && dr === r)) continue;
+      set(walls, c, r, g('wall_inner'));
+      collide(c, r);
+    }
   };
+  const hLine = (c0, c1, r) => Array.from({ length: c1 - c0 + 1 }, (_, i) => [c0 + i, r]);
+  const vLine = (r0, r1, c) => Array.from({ length: r1 - r0 + 1 }, (_, i) => [c, r0 + i]);
 
   const screens = ['monitor_a', 'monitor_b', 'monitor_c'];
-  // up-desk: front edge faces DOWN (agent sits below). flipV => down-desk (front
-  // edge faces UP, partition at bottom) so back-to-back rows share a partition.
   const deskTriple = (pc, r, flipV = false) => {
     const f = flipV ? FLIP_V : 0;
     set(furniture, pc, r, g('desk_l') | f); set(furniture, pc + 1, r, g('desk_m') | f); set(furniture, pc + 2, r, g('desk_r') | f);
@@ -63,18 +66,15 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   };
 
   // =====================================================================
-  // MAIN BULLPEN — packed back-to-back pods (cols 1..18, rows 2..9)
+  // MAIN BULLPEN — facing 2-row pods (cols 3..17, rows 3..12)
   // =====================================================================
-  const podCols = [2, 6, 10, 14];
-  const podBlocks = [3, 7]; // top-desk row of each back-to-back block
+  const podCols = [3, 7, 11, 15];
+  const podBlocks = [4, 9]; // top-desk row of each back-to-back block
   let s = 0;
   for (const pr of podBlocks) {
     for (const pc of podCols) {
-      // pr = down-desk (agent above at pr-1, faces down) → flip so front edge is at top
-      deskTriple(pc, pr, true);
-      // pr+1 = up-desk (agent below at pr+2, faces up) → normal
-      deskTriple(pc, pr + 1);
-      // monitors near each agent side: down-desk screen up (normal), up-desk screen down (flipV)
+      deskTriple(pc, pr, true); // down-desk (front edge up, partition down)
+      deskTriple(pc, pr + 1); // up-desk
       set(objects, pc + 1, pr, g(screens[s % 3])); set(objects, pc, pr, g('keyboard')); set(objects, pc + 2, pr, g('deskprops'));
       set(objects, pc + 1, pr + 1, g(screens[(s + 1) % 3]) | FLIP_V); set(objects, pc + 2, pr + 1, g('keyboard')); set(objects, pc, pr + 1, g('deskprops'));
       set(furniture, pc + 1, pr - 1, g('chair_down')); seat(pc + 1, pr - 1, 'member', 'down');
@@ -82,102 +82,81 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
       s++;
     }
   }
-  corridorRow(10, 1, 25);
-  corridorCol(19, 2, 9);
-  // utility column (cols 17..18) + left shelves
-  set(objects, 17, 2, g('bookshelf_t')); set(furniture, 17, 4, g('plant_b'));
-  set(furniture, 17, 6, g('water')); set(furniture, 17, 8, g('plant_b'));
-  set(objects, 1, 2, g('bookshelf_t')); set(furniture, 1, 9, g('plant_b'));
+  // bullpen wall decor + plants (cols 18..19 are the right aisle)
+  set(objects, 3, 2, g('whiteboard_l')); set(objects, 4, 2, g('whiteboard_r')); set(objects, 9, 2, g('corkboard')); set(objects, 14, 2, g('poster'));
+  set(furniture, 18, 4, g('plant_b')); set(furniture, 19, 8, g('water')); set(furniture, 18, 11, g('plant_b'));
+  set(furniture, 6, 7, g('plant_s')); set(furniture, 14, 7, g('plant_s'));
+  corridor(2, 13, 19, 14);
+  poi(10, 13, 'corridor', 'down');
 
   // =====================================================================
-  // MEETING ROOM — right side, walled (cols 19..26, rows 1..9)
+  // TOP-RIGHT WING — meeting room + lounge/library (cols 21..30, rows 2..9)
   // =====================================================================
-  tileRoom(20, 2, 25, 8);
-  wallRect(19, 1, 26, 9, [{ c0: 19, c1: 19, r0: 5, r1: 6 }]); // door to the corridor
-  set(objects, 21, 2, g('whiteboard_l')); set(objects, 22, 2, g('whiteboard_r')); set(objects, 24, 2, g('board_kanban'));
-  set(furniture, 22, 4, g('table_tl')); set(furniture, 23, 4, g('table_tr'));
-  set(furniture, 22, 5, g('table_bl')); set(furniture, 23, 5, g('table_br'));
-  collide(22, 4, 2, 2);
-  set(objects, 22, 4, g('laptop')); set(objects, 23, 5, g('deskprops'));
-  set(furniture, 22, 3, g('chair_down')); set(furniture, 23, 3, g('chair_down'));
-  set(furniture, 22, 6, g('chair_up')); set(furniture, 23, 6, g('chair_up'));
-  seat(22, 3, 'review', 'down'); seat(23, 3, 'review', 'down');
-  seat(22, 6, 'review', 'up'); seat(23, 6, 'review', 'up');
-  set(furniture, 25, 2, g('plant_b')); set(furniture, 20, 7, g('plant_b'));
-  set(furniture, 24, 7, g('water'));
-  poi(22, 5, 'meeting', 'down');
+  // partition separating bullpen aisle (col 20) from the wing (door rows 5..6)
+  wallLine(vLine(3, 8, 21), [[21, 5], [21, 6]]);
+  corridor(20, 4, 20, 7);
+  // meeting room (cols 22..25)
+  tileRoom(22, 3, 25, 8);
+  wallLine(vLine(3, 8, 26)); // right wall of meeting (vs lounge)
+  set(objects, 22, 2, g('whiteboard_l')); set(objects, 23, 2, g('whiteboard_r')); set(objects, 24, 2, g('board_kanban'));
+  set(furniture, 23, 5, g('table_tl')); set(furniture, 24, 5, g('table_tr'));
+  set(furniture, 23, 6, g('table_bl')); set(furniture, 24, 6, g('table_br'));
+  collide(23, 5, 2, 2);
+  set(objects, 23, 5, g('laptop')); set(objects, 24, 6, g('deskprops'));
+  set(furniture, 23, 4, g('chair_down')); set(furniture, 24, 4, g('chair_down'));
+  set(furniture, 23, 7, g('chair_up')); set(furniture, 24, 7, g('chair_up'));
+  seat(23, 4, 'review', 'down'); seat(24, 4, 'review', 'down');
+  seat(23, 7, 'review', 'up'); seat(24, 7, 'review', 'up');
+  set(furniture, 22, 8, g('plant_b'));
+  poi(23, 6, 'meeting', 'down');
+  // lounge / library (cols 27..30) — reading + shelves, side-facing seats
+  set(objects, 27, 2, g('corkboard')); set(objects, 29, 2, g('poster'));
+  set(furniture, 27, 4, g('sofa_l')); set(furniture, 28, 4, g('sofa_m')); set(furniture, 29, 4, g('sofa_r'));
+  collide(27, 4, 3, 1);
+  set(furniture, 28, 5, g('table_bl')); set(furniture, 29, 5, g('table_br'));
+  set(furniture, 27, 7, g('bookshelf_t')); set(furniture, 30, 6, g('plant_b'));
+  set(furniture, 29, 7, g('chair_up')); seat(29, 7, 'member', 'up');
+  set(furniture, 27, 6, g('chair_right' in nameToGid ? 'chair_right' : 'chair_down')); // reading chair faces shelf
+  seat(27, 6, 'member', 'left');
+  set(furniture, 30, 3, g('water'));
+  poi(28, 5, 'lounge', 'up');
 
   // =====================================================================
-  // TECH LEAD OFFICE — bottom-left, walled (cols 1..9, rows 10..15)
+  // TECH LEAD OFFICE — bottom-left, walled (cols 2..11, rows 14..20)
   // =====================================================================
-  tileRoom(2, 11, 8, 14);
-  wallRect(1, 10, 9, 15, [{ c0: 9, c1: 9, r0: 12, r1: 13 }]); // door to the corridor
-  rug(furniture, set, g, FLIP_H, FLIP_V, 'rug_l', 3, 11, 7, 14);
-  deskTriple(3, 12);
-  set(objects, 3, 12, g('monitor_a')); set(objects, 4, 12, g('monitor_b')); set(objects, 5, 12, g('deskprops'));
-  set(objects, 5, 11, g('lamp'));
-  set(furniture, 4, 13, g('chair_up')); seat(4, 13, 'tech-lead', 'up');
-  set(furniture, 3, 14, g('chair_down')); set(furniture, 6, 14, g('chair_down'));
-  seat(3, 14, 'visitor', 'up'); seat(6, 14, 'visitor', 'up');
-  set(objects, 2, 11, g('board_kanban')); set(objects, 7, 11, g('poster')); set(objects, 8, 11, g('statuslight'));
-  set(furniture, 8, 13, g('bookshelf_t')); set(furniture, 2, 14, g('plant_b'));
-  poi(4, 13, 'lead-office', 'up');
+  tileRoom(3, 16, 10, 19);
+  wallLine(hLine(3, 11, 15), [[6, 15], [7, 15]]); // top wall, door to corridor
+  wallLine(vLine(16, 19, 11)); // right wall vs storage
+  rug(furniture, set, g, FLIP_H, FLIP_V, 'rug_l', 4, 16, 9, 19);
+  deskTriple(4, 16, false);
+  set(objects, 4, 16, g('monitor_a')); set(objects, 5, 16, g('monitor_b')); set(objects, 6, 16, g('deskprops'));
+  set(objects, 6, 15, g('lamp'));
+  set(furniture, 5, 17, g('chair_up')); seat(5, 17, 'tech-lead', 'up');
+  set(furniture, 4, 18, g('chair_down')); set(furniture, 7, 18, g('chair_down'));
+  seat(4, 18, 'visitor', 'up'); seat(7, 18, 'visitor', 'up');
+  set(objects, 3, 15, g('board_kanban')); set(objects, 9, 15, g('statuslight'));
+  set(furniture, 10, 18, g('bookshelf_t')); set(furniture, 3, 19, g('plant_b'));
+  poi(5, 17, 'lead-office', 'up');
 
   // =====================================================================
-  // SUPPORT / STORAGE — bottom-centre (cols 10..18, rows 11..14)
+  // STORAGE / SUPPORT — bottom-centre (cols 12..19, rows 15..19)
   // =====================================================================
-  set(furniture, 10, 12, g('desk_l')); set(furniture, 11, 12, g('desk_r'));
-  collide(10, 12, 2, 1);
-  set(objects, 10, 12, g('monitor_c')); set(objects, 11, 12, g('keyboard'));
-  set(furniture, 10, 13, g('chair_up')); seat(10, 13, 'assistant', 'up');
-  set(furniture, 13, 11, g('cabinet')); set(furniture, 14, 11, g('cabinet'));
-  set(furniture, 13, 13, g('printer')); set(furniture, 15, 13, g('box'));
-  set(furniture, 17, 11, g('server')); set(furniture, 17, 13, g('plant_b'));
-  set(furniture, 15, 11, g('plant_s'));
-  poi(13, 13, 'printer', 'down');
+  set(furniture, 12, 16, g('desk_l')); set(furniture, 13, 16, g('desk_r'));
+  collide(12, 16, 2, 1);
+  set(objects, 12, 16, g('monitor_c')); set(objects, 13, 16, g('keyboard'));
+  set(furniture, 12, 17, g('chair_up')); seat(12, 17, 'assistant', 'up');
+  set(furniture, 15, 15, g('cabinet')); set(furniture, 16, 15, g('cabinet'));
+  set(furniture, 15, 18, g('printer')); set(furniture, 17, 18, g('box'));
+  set(furniture, 18, 15, g('server')); set(furniture, 19, 18, g('plant_b'));
+  set(furniture, 17, 16, g('rack')); set(furniture, 14, 19, g('trash'));
+  set(objects, 18, 17, g('docs'));
+  poi(15, 18, 'printer', 'down');
 
-  // =====================================================================
-  // LOUNGE / BREAKOUT — bottom-right open corner (cols 20..25, rows 11..14)
-  // =====================================================================
-  set(furniture, 20, 11, g('sofa_l')); set(furniture, 21, 11, g('sofa_m')); set(furniture, 22, 11, g('sofa_r'));
-  collide(20, 11, 3, 1);
-  set(furniture, 21, 12, g('table_bl')); set(furniture, 22, 12, g('table_br'));
-  set(furniture, 21, 13, g('chair_up'));
-  set(furniture, 24, 11, g('plant_b')); set(furniture, 20, 14, g('plant_b'));
-  set(furniture, 24, 13, g('water'));
-  set(objects, 24, 13, g('bookshelf_t'));
-  set(furniture, 25, 12, g('cabinet'));
-  poi(21, 13, 'lounge', 'up');
-
-  // =====================================================================
-  // DENSITY FILL — keep the office "빼곡": lanes, walls, corners (no voids).
-  // Empty seats already read as full workstations (desk/monitor/chair are in
-  // the tile layers regardless of agent occupancy). These are decorative props.
-  // =====================================================================
-  // left wall column
-  set(furniture, 1, 4, g('cabinet')); set(furniture, 1, 6, g('plant_s'));
-  // inter-pod lanes (cols 5 / 9 / 13) — alternate props, leave a walkable gap
-  set(furniture, 5, 2, g('plant_b')); set(furniture, 5, 4, g('sidetable')); set(objects, 5, 6, g('docs')); set(furniture, 5, 8, g('coffee'));
-  set(furniture, 9, 3, g('plant_b')); set(furniture, 9, 6, g('sidetable')); set(objects, 9, 9, g('docs'));
-  set(furniture, 13, 2, g('plant_s')); set(objects, 13, 4, g('docs')); set(furniture, 13, 7, g('plant_b')); set(furniture, 13, 9, g('trash'));
-  // wall-mounted decor along the top of the bullpen (overhead-ish, on objects)
-  set(objects, 5, 1, g('corkboard')); set(objects, 11, 1, g('whiteboard_l')); set(objects, 13, 1, g('poster'));
-  // storage / bottom gaps
-  set(objects, 12, 11, g('docs')); set(furniture, 12, 13, g('clutter')); set(furniture, 18, 11, g('rack')); set(furniture, 18, 13, g('box'));
-  set(furniture, 11, 14, g('trash'));
-  // meeting room extra fill
-  set(furniture, 20, 3, g('sidetable')); set(objects, 20, 5, g('docs')); set(furniture, 25, 5, g('cabinet')); set(objects, 25, 3, g('corkboard'));
-  // lounge extra
-  set(objects, 23, 14, g('postits')); set(furniture, 25, 14, g('plant_s'));
-  // corners
-  set(furniture, 1, 14, g('plant_b')); set(furniture, 17, 9, g('plant_s'));
-
-  // per-floor decorative accent slots — kept EMPTY here; the renderer fills
-  // them with floor-type-specific tiles so each floor looks different.
-  for (const [c, r] of [[18, 2], [18, 4], [18, 6], [18, 8], [16, 12], [16, 14]]) accentSlot(c, r);
+  // per-floor accent slots (kept empty; renderer fills per floor type)
+  for (const [c, r] of [[19, 4], [19, 6], [18, 13], [13, 13], [30, 8], [18, 19]]) if (inside(c, r)) accentSlot(c, r);
 
   // entries
-  spawn(9, 10, 'left'); spawn(19, 10, 'up'); spawn(1, 10, 'right');
+  spawn(10, 13, 'up'); spawn(20, 5, 'right'); spawn(6, 15, 'down');
 
   // ── assemble Tiled JSON ──
   let lid = 1;
@@ -195,7 +174,7 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   };
 }
 
-// place a lavender rug across a rect using the rug tiles + H/V flips (no diagonal)
+// lavender rug across a rect using the rug tiles + H/V flips (no diagonal)
 function rug(layer, set, g, FH, FV, prefix, c0, r0, c1, r1) {
   for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
     const top = r === r0, bot = r === r1, left = c === c0, right = c === c1;
