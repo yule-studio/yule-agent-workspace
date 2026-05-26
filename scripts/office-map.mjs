@@ -24,12 +24,13 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   const idx = (c, r) => r * W + c;
   const set = (layer, c, r, gid) => { if (c >= 0 && c < W && r >= 0 && r < H) layer[idx(c, r)] = gid >>> 0; };
 
-  const seats = [], collisions = [], pois = [], spawns = [];
+  const seats = [], collisions = [], pois = [], spawns = [], accents = [];
   let oid = 1;
   const px = (c) => c * TS;
   const seat = (c, r, role, facing) => seats.push({ id: oid++, name: role, x: px(c) + TS / 2, y: px(r) + TS / 2, width: 0, height: 0, point: true, properties: [{ name: 'role', type: 'string', value: role }, { name: 'facing', type: 'string', value: facing }] });
   const poi = (c, r, name, facing = 'down') => pois.push({ id: oid++, name, x: px(c) + TS / 2, y: px(r) + TS / 2, width: 0, height: 0, point: true, properties: [{ name: 'facing', type: 'string', value: facing }] });
   const spawn = (c, r, facing) => spawns.push({ id: oid++, name: '', x: px(c) + TS / 2, y: px(r) + TS / 2, width: 0, height: 0, point: true, properties: [{ name: 'facing', type: 'string', value: facing }] });
+  const accentSlot = (c, r) => accents.push({ id: oid++, name: '', x: px(c) + TS / 2, y: px(r) + TS / 2, width: 0, height: 0, point: true });
   const collide = (c, r, wc = 1, hr = 1) => collisions.push({ id: oid++, name: '', x: px(c), y: px(r), width: wc * TS, height: hr * TS });
 
   // ── floor: carpet everywhere, deterministic variation ──
@@ -53,8 +54,11 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   };
 
   const screens = ['monitor_a', 'monitor_b', 'monitor_c'];
-  const deskTriple = (pc, r) => {
-    set(furniture, pc, r, g('desk_l')); set(furniture, pc + 1, r, g('desk_m')); set(furniture, pc + 2, r, g('desk_r'));
+  // up-desk: front edge faces DOWN (agent sits below). flipV => down-desk (front
+  // edge faces UP, partition at bottom) so back-to-back rows share a partition.
+  const deskTriple = (pc, r, flipV = false) => {
+    const f = flipV ? FLIP_V : 0;
+    set(furniture, pc, r, g('desk_l') | f); set(furniture, pc + 1, r, g('desk_m') | f); set(furniture, pc + 2, r, g('desk_r') | f);
     collide(pc, r, 3, 1);
   };
 
@@ -66,9 +70,13 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   let s = 0;
   for (const pr of podBlocks) {
     for (const pc of podCols) {
-      deskTriple(pc, pr); deskTriple(pc, pr + 1);
+      // pr = down-desk (agent above at pr-1, faces down) → flip so front edge is at top
+      deskTriple(pc, pr, true);
+      // pr+1 = up-desk (agent below at pr+2, faces up) → normal
+      deskTriple(pc, pr + 1);
+      // monitors near each agent side: down-desk screen up (normal), up-desk screen down (flipV)
       set(objects, pc + 1, pr, g(screens[s % 3])); set(objects, pc, pr, g('keyboard')); set(objects, pc + 2, pr, g('deskprops'));
-      set(objects, pc + 1, pr + 1, g(screens[(s + 1) % 3])); set(objects, pc + 2, pr + 1, g('keyboard')); set(objects, pc, pr + 1, g('deskprops'));
+      set(objects, pc + 1, pr + 1, g(screens[(s + 1) % 3]) | FLIP_V); set(objects, pc + 2, pr + 1, g('keyboard')); set(objects, pc, pr + 1, g('deskprops'));
       set(furniture, pc + 1, pr - 1, g('chair_down')); seat(pc + 1, pr - 1, 'member', 'down');
       set(furniture, pc + 1, pr + 2, g('chair_up')); seat(pc + 1, pr + 2, 'member', 'up');
       s++;
@@ -141,6 +149,33 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   set(furniture, 25, 12, g('cabinet'));
   poi(21, 13, 'lounge', 'up');
 
+  // =====================================================================
+  // DENSITY FILL — keep the office "빼곡": lanes, walls, corners (no voids).
+  // Empty seats already read as full workstations (desk/monitor/chair are in
+  // the tile layers regardless of agent occupancy). These are decorative props.
+  // =====================================================================
+  // left wall column
+  set(furniture, 1, 4, g('cabinet')); set(furniture, 1, 6, g('plant_s'));
+  // inter-pod lanes (cols 5 / 9 / 13) — alternate props, leave a walkable gap
+  set(furniture, 5, 2, g('plant_b')); set(furniture, 5, 4, g('sidetable')); set(objects, 5, 6, g('docs')); set(furniture, 5, 8, g('coffee'));
+  set(furniture, 9, 3, g('plant_b')); set(furniture, 9, 6, g('sidetable')); set(objects, 9, 9, g('docs'));
+  set(furniture, 13, 2, g('plant_s')); set(objects, 13, 4, g('docs')); set(furniture, 13, 7, g('plant_b')); set(furniture, 13, 9, g('trash'));
+  // wall-mounted decor along the top of the bullpen (overhead-ish, on objects)
+  set(objects, 5, 1, g('corkboard')); set(objects, 11, 1, g('whiteboard_l')); set(objects, 13, 1, g('poster'));
+  // storage / bottom gaps
+  set(objects, 12, 11, g('docs')); set(furniture, 12, 13, g('clutter')); set(furniture, 18, 11, g('rack')); set(furniture, 18, 13, g('box'));
+  set(furniture, 11, 14, g('trash'));
+  // meeting room extra fill
+  set(furniture, 20, 3, g('sidetable')); set(objects, 20, 5, g('docs')); set(furniture, 25, 5, g('cabinet')); set(objects, 25, 3, g('corkboard'));
+  // lounge extra
+  set(objects, 23, 14, g('postits')); set(furniture, 25, 14, g('plant_s'));
+  // corners
+  set(furniture, 1, 14, g('plant_b')); set(furniture, 17, 9, g('plant_s'));
+
+  // per-floor decorative accent slots — kept EMPTY here; the renderer fills
+  // them with floor-type-specific tiles so each floor looks different.
+  for (const [c, r] of [[18, 2], [18, 4], [18, 6], [18, 8], [16, 12], [16, 14]]) accentSlot(c, r);
+
   // entries
   spawn(9, 10, 'left'); spawn(19, 10, 'up'); spawn(1, 10, 'right');
 
@@ -155,7 +190,7 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
     tilesets: [{ firstgid: 1, name: 'office', image: 'tileset.png', imagewidth: atlasW, imageheight: atlasH, tilewidth: TS, tileheight: TS, tilecount: count, columns: Math.floor(atlasW / TS), margin: 0, spacing: 0 }],
     layers: [
       tl('floor', floor), tl('walls', walls), tl('furniture', furniture), tl('objects', objects), tl('overhead', overhead),
-      og('seats', seats), og('pois', pois), og('spawns', spawns), og('collisions', collisions),
+      og('seats', seats), og('pois', pois), og('spawns', spawns), og('accents', accents), og('collisions', collisions),
     ],
   };
 }

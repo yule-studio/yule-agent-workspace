@@ -51,23 +51,46 @@ export interface Poi {
   name: string;
 }
 
-const BASE = '/vendor/office';
-let cache: Promise<{ map: TiledMap; image: HTMLImageElement }> | null = null;
+export interface TileIndex {
+  tile: number;
+  cols: number;
+  names: Record<string, number>;
+}
 
-/** Load the map JSON + tileset image once (module-cached). */
-export function loadOffice(): Promise<{ map: TiledMap; image: HTMLImageElement }> {
+const BASE = '/vendor/office';
+let cache: Promise<{ map: TiledMap; image: HTMLImageElement; tiles: TileIndex }> | null = null;
+
+/** Load the map JSON + tileset image + tile index once (module-cached). */
+export function loadOffice(): Promise<{ map: TiledMap; image: HTMLImageElement; tiles: TileIndex }> {
   if (cache) return cache;
   cache = (async () => {
-    const map: TiledMap = await fetch(`${BASE}/office.tmj`).then((r) => r.json());
+    const [map, tiles] = await Promise.all([
+      fetch(`${BASE}/office.tmj`).then((r) => r.json() as Promise<TiledMap>),
+      fetch(`${BASE}/tiles.json`).then((r) => r.json() as Promise<TileIndex>),
+    ]);
     const image = await new Promise<HTMLImageElement>((res, rej) => {
       const img = new Image();
       img.onload = () => res(img);
       img.onerror = rej;
       img.src = `${BASE}/${map.tilesets[0]!.image}`;
     });
-    return { map, image };
+    return { map, image, tiles };
   })();
   return cache;
+}
+
+/** Draw a single tile (by registry name) at a pixel position — for accents. */
+export function drawTile(ctx: CanvasRenderingContext2D, image: HTMLImageElement, tiles: TileIndex, name: string, dx: number, dy: number) {
+  const gid = tiles.names[name];
+  if (!gid) return;
+  const id = gid - 1;
+  const T = tiles.tile;
+  ctx.drawImage(image, (id % tiles.cols) * T, ((id / tiles.cols) | 0) * T, T, T, dx, dy, T, T);
+}
+
+export function readAccents(map: TiledMap): { x: number; y: number }[] {
+  const g = map.layers.find((l): l is ObjectGroup => l.type === 'objectgroup' && l.name === 'accents');
+  return (g?.objects ?? []).map((o) => ({ x: o.x, y: o.y }));
 }
 
 export function mapPixelSize(map: TiledMap) {
