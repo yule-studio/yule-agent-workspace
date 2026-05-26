@@ -1,94 +1,95 @@
 /**
- * PixelAvatar — a small top-down RPG/Gather-style human, one per agent.
- * Everything (skin, hair style + colour, shirt, pants, shoes, accessory) is
- * derived deterministically from the agent's avatar seed, so an agent keeps the
- * same look across refreshes while the office reads as a crowd of distinct
- * people. Shading + an outline give it real pixel-art depth — not a flat block.
+ * PixelAvatar — a 48x64 top-down RPG/Gather-style human, rendered crisp. Hair,
+ * face, outfit, legs and shoes each carry base + shadow + highlight shades, and
+ * appearance (skin / hair style+colour / outfit style+colour / pants / shoes /
+ * glasses) is chosen deterministically from the agent's seed, so the office
+ * reads as a crowd of distinct people — not one recoloured block.
  */
+import type { ReactNode } from 'react';
 import type { AgentActivity } from '@yule/shared-types';
 
-const SKIN = ['#f1c9a5', '#e6b58c', '#d29a6e', '#b87c4f', '#9c6238'];
-const SKIN_D = ['#d8ac86', '#c99a72', '#b67e54', '#9c623a', '#7e4d2a'];
-const HAIR = ['#26262b', '#43301f', '#624427', '#8a6a3a', '#101216', '#7c828a', '#a8503a', '#d9c08a'];
-const SHIRT = ['#5b86a8', '#5fa394', '#8b80c9', '#c98a8a', '#6b9bb5', '#7d8a96', '#5f8a6a', '#b07f9e', '#6f7fa6'];
-const SHIRT_D = ['#4a7090', '#4f8a7c', '#74699f', '#ab7373', '#5783a0', '#697680', '#4f7457', '#976a86', '#5b6a8e'];
-const PANTS = ['#39414e', '#2f3a48', '#454d57', '#3a3340', '#3d3a44', '#2d3640', '#4a4750'];
-const SHOE = ['#191e25', '#241c16', '#20242b'];
+const SKIN = ['#f2d2b3', '#e8bd99', '#d9a47e', '#c2895f', '#a06b44'];
+const HAIR = ['#2a2622', '#1b1a20', '#5a3a26', '#8a6a3a', '#9a4a30', '#b6aea4', '#cca65c', '#36404e'];
+const OUTFIT = ['#8c93d8', '#9fbd9f', '#d98aa5', '#6f7da0', '#b58ac4', '#7fae8a', '#a99cff', '#5f7488', '#c98a8a'];
+const PANTS = ['#39414e', '#2e3540', '#454d5d', '#4a4036', '#39414e', '#5a5360', '#3a4250'];
+const SHOE = ['#1c2026', '#241c18', '#2a2530'];
+
+function shade(hex: string, f: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
+  return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+const pick = <T,>(arr: T[], seed: number, salt: number): T => arr[Math.abs(Math.floor(seed / salt)) % arr.length]!;
 
 export function Character({ seed, activity, walking }: { seed: number; activity: AgentActivity; walking: boolean }) {
   const skin = SKIN[Math.abs(seed) % SKIN.length]!;
-  const skinD = SKIN_D[SKIN.indexOf(skin)]!;
-  const hair = HAIR[Math.abs(Math.floor(seed / 3)) % HAIR.length]!;
-  const shirtI = Math.abs(Math.floor(seed / 7)) % SHIRT.length;
-  const shirt = SHIRT[shirtI]!;
-  const shirtD = SHIRT_D[shirtI]!;
-  const pants = PANTS[Math.abs(Math.floor(seed / 13)) % PANTS.length]!;
-  const shoe = SHOE[Math.abs(Math.floor(seed / 17)) % SHOE.length]!;
-  const hairStyle = Math.abs(Math.floor(seed / 5)) % 5;
-  const acc = seed % 6;
+  const skinS = shade(skin, 0.85);
+  const hair = pick(HAIR, seed, 3);
+  const hairS = shade(hair, 0.7);
+  const hairH = shade(hair, 1.3);
+  const outfit = pick(OUTFIT, seed, 7);
+  const outfitS = shade(outfit, 0.8);
+  const outfitH = shade(outfit, 1.18);
+  const pants = pick(PANTS, seed, 13);
+  const pantsS = shade(pants, 0.78);
+  const shoe = pick(SHOE, seed, 17);
+  const hairStyle = Math.abs(Math.floor(seed / 5)) % 6;
+  const outfitStyle = Math.abs(Math.floor(seed / 11)) % 6;
+  const glasses = seed % 4 === 0;
 
   return (
     <div className={`char act-${activity}${walking ? ' walking' : ''}`}>
-      <svg viewBox="0 0 32 54" shapeRendering="crispEdges" width="40" height="68">
-        <ellipse cx="16" cy="52" rx="9" ry="2.4" fill="#00000045" />
+      <svg viewBox="0 0 48 64" shapeRendering="crispEdges" width="42" height="56">
+        <ellipse cx="24" cy="61" rx="13" ry="3" fill="#00000045" />
 
         {/* legs + shoes */}
         <g className="legs">
           <g className="leg l">
-            <rect x="11" y="37" width="5" height="11" fill={pants} />
-            <rect x="11" y="46" width="5" height="3" fill={shoe} />
+            <rect x="17" y="44" width="7" height="13" fill={pants} />
+            <rect x="17" y="44" width="2" height="13" fill={pantsS} />
+            <rect x="16" y="56" width="8" height="5" rx="1" fill={shoe} />
+            <rect x="16" y="56" width="8" height="1.4" fill={shade(shoe, 1.5)} />
           </g>
           <g className="leg r">
-            <rect x="16" y="37" width="5" height="11" fill={pants} />
-            <rect x="16" y="37" width="5" height="11" fill="#00000018" />
-            <rect x="16" y="46" width="5" height="3" fill={shoe} />
+            <rect x="24" y="44" width="7" height="13" fill={pants} />
+            <rect x="29" y="44" width="2" height="13" fill={pantsS} />
+            <rect x="24" y="56" width="8" height="5" rx="1" fill={shoe} />
+            <rect x="24" y="56" width="8" height="1.4" fill={shade(shoe, 1.5)} />
           </g>
         </g>
+        {/* hip */}
+        <rect x="15" y="40" width="18" height="6" fill={pants} />
+        <rect x="15" y="40" width="18" height="1.5" fill={shade(pants, 1.15)} />
 
-        {/* torso + arms + hands */}
-        <rect x="9" y="23" width="14" height="15" rx="2" fill={shirt} />
-        <rect x="9" y="23" width="14" height="2" fill="#ffffff28" />
-        <rect x="16" y="23" width="7" height="15" fill={shirtD} />
-        <rect className="arm l" x="6" y="24" width="4" height="11" rx="2" fill={shirt} />
-        <rect className="arm r" x="22" y="24" width="4" height="11" rx="2" fill={shirtD} />
-        <rect className="arm l" x="6" y="34" width="4" height="3" fill={skin} />
-        <rect className="arm r" x="22" y="34" width="4" height="3" fill={skinD} />
-        {acc === 2 && <rect x="15" y="23" width="2" height="9" fill="#c46b63" />}
+        {/* outfit + arms */}
+        <Outfit style={outfitStyle} base={outfit} sh={outfitS} hi={outfitH} skin={skin} skinS={skinS} />
 
         {/* neck */}
-        <rect x="13" y="20" width="6" height="4" fill={skinD} />
+        <rect x="20" y="20" width="8" height="5" fill={skinS} />
 
-        {/* head + face */}
-        <rect x="9" y="8" width="14" height="13" rx="3" fill={skin} />
-        <rect x="20" y="9" width="3" height="11" fill={skinD} />
-        <rect x="8" y="13" width="2" height="3" fill={skinD} />
-        <rect x="22" y="13" width="2" height="3" fill={skinD} />
-        <rect x="12" y="13" width="2" height="3" fill="#1b1f25" />
-        <rect x="18" y="13" width="2" height="3" fill="#1b1f25" />
-        <rect className="blink" x="11" y="13" width="10" height="2" fill={skin} />
-        <rect x="14" y="18" width="4" height="1" fill={skinD} />
+        {/* head */}
+        <rect x="15" y="8" width="18" height="15" rx="3" fill={skin} />
+        <rect x="29" y="9" width="4" height="13" fill={skinS} />
+        <rect x="14" y="13" width="2" height="4" fill={skinS} />
+        <rect x="32" y="13" width="2" height="4" fill={skinS} />
+        <rect x="18" y="17" width="2" height="2" fill={shade(skin, 0.92)} opacity="0.7" />
+        <rect x="28" y="17" width="2" height="2" fill={shade(skin, 0.92)} opacity="0.7" />
+        <rect x="23" y="16" width="2" height="3" fill={skinS} />
+        <rect x="21" y="20" width="6" height="1.4" fill={shade(skin, 0.78)} />
+        {/* eyes */}
+        <rect x="19" y="14" width="2.4" height="3" fill="#23262d" />
+        <rect x="26" y="14" width="2.4" height="3" fill="#23262d" />
+        <rect x="19" y="14" width="2.4" height="1" fill="#4a4f59" />
+        <rect className="blink" x="18" y="14" width="11" height="2" fill={skin} />
 
         {/* hair */}
-        {hairStyle === 0 && <Hair color={hair} kind="short" />}
-        {hairStyle === 1 && <Hair color={hair} kind="side" />}
-        {hairStyle === 2 && <Hair color={hair} kind="bob" />}
-        {hairStyle === 3 && <Hair color={hair} kind="cap" />}
-        {hairStyle === 4 && <Hair color={hair} kind="pony" />}
+        <Hair style={hairStyle} base={hair} sh={hairS} hi={hairH} />
 
-        {/* accessories */}
-        {acc === 0 && (
+        {glasses && (
           <g>
-            <rect x="11" y="12" width="4" height="4" fill="none" stroke="#1b1f25" strokeWidth="0.8" />
-            <rect x="17" y="12" width="4" height="4" fill="none" stroke="#1b1f25" strokeWidth="0.8" />
-            <rect x="15" y="13" width="2" height="1" fill="#1b1f25" />
-          </g>
-        )}
-        {acc === 1 && (
-          <g>
-            <path d="M9 11 Q16 4 23 11" fill="none" stroke="#22272e" strokeWidth="1.4" />
-            <rect x="7.5" y="11" width="2.5" height="4" fill="#22272e" />
-            <rect x="9" y="16" width="2" height="3" fill="#22272e" />
-            <rect x="9.6" y="18.5" width="3" height="1.6" fill="#22272e" />
+            <rect x="18" y="13.5" width="4.5" height="4.5" fill="none" stroke="#23262d" strokeWidth="0.9" />
+            <rect x="25.5" y="13.5" width="4.5" height="4.5" fill="none" stroke="#23262d" strokeWidth="0.9" />
+            <rect x="22.5" y="15" width="3" height="1" fill="#23262d" />
           </g>
         )}
       </svg>
@@ -96,49 +97,165 @@ export function Character({ seed, activity, walking }: { seed: number; activity:
   );
 }
 
-function Hair({ color, kind }: { color: string; kind: 'short' | 'side' | 'bob' | 'cap' | 'pony' }) {
-  const dark = '#00000022';
-  switch (kind) {
-    case 'short':
+function Outfit({
+  style,
+  base,
+  sh,
+  hi,
+  skin,
+  skinS,
+}: {
+  style: number;
+  base: string;
+  sh: string;
+  hi: string;
+  skin: string;
+  skinS: string;
+}) {
+  const arms = (
+    <>
+      <rect className="arm l" x="10" y="26" width="5" height="13" rx="2" fill={base} />
+      <rect className="arm l" x="10" y="26" width="2" height="13" fill={sh} />
+      <rect className="arm r" x="33" y="26" width="5" height="13" rx="2" fill={sh} />
+      <rect className="arm l" x="10" y="37" width="5" height="3" fill={skin} />
+      <rect className="arm r" x="33" y="37" width="5" height="3" fill={skinS} />
+    </>
+  );
+  const body = (collar?: ReactNode, extra?: ReactNode) => (
+    <g>
+      {arms}
+      <rect x="14" y="24" width="20" height="18" rx="2" fill={base} />
+      <rect x="14" y="24" width="20" height="2.5" fill={hi} />
+      <rect x="30" y="24" width="4" height="18" fill={sh} />
+      {extra}
+      {collar}
+    </g>
+  );
+  switch (style) {
+    case 0: // hoodie
+      return body(
+        <>
+          <rect x="18" y="22" width="12" height="4" rx="2" fill={sh} />
+          <rect x="23" y="26" width="2" height="12" fill={sh} />
+        </>,
+        <rect x="17" y="34" width="14" height="5" rx="1" fill={sh} />,
+      );
+    case 1: // shirt + collar
+      return body(
+        <>
+          <rect x="20" y="23" width="3" height="4" fill={hi} transform="rotate(20 21 25)" />
+          <rect x="25" y="23" width="3" height="4" fill={hi} transform="rotate(-20 27 25)" />
+          <rect x="23" y="26" width="1.6" height="14" fill={sh} />
+        </>,
+      );
+    case 2: // jacket
+      return body(
+        <>
+          <rect x="22" y="24" width="4" height="16" fill={shade(base, 0.6)} />
+          <rect x="17" y="24" width="4" height="14" fill={hi} transform="rotate(8 19 30)" />
+          <rect x="27" y="24" width="4" height="14" fill={sh} transform="rotate(-8 29 30)" />
+        </>,
+      );
+    case 3: // sweater
+      return body(
+        <rect x="19" y="22" width="10" height="3" rx="3" fill={sh} />,
+        <>
+          {[28, 33, 38].map((y) => (
+            <rect key={y} x="15" y={y} width="18" height="1" fill={sh} opacity="0.5" />
+          ))}
+        </>,
+      );
+    case 4: // vest over shirt
+      return body(
+        <rect x="20" y="23" width="8" height="2" fill="#e7e9ef" />,
+        <>
+          <rect x="14" y="24" width="5" height="18" fill={sh} />
+          <rect x="29" y="24" width="5" height="18" fill={shade(base, 0.7)} />
+          <rect x="22" y="25" width="4" height="15" fill="#dfe2e8" />
+        </>,
+      );
+    default: // dress
       return (
         <g>
-          <rect x="8" y="6" width="16" height="5" rx="2" fill={color} />
-          <rect x="8" y="9" width="2" height="3" fill={color} />
-          <rect x="22" y="9" width="2" height="3" fill={color} />
-          <rect x="8" y="6" width="16" height="2" fill={dark} />
+          {arms}
+          <rect x="15" y="24" width="18" height="12" rx="2" fill={base} />
+          <rect x="15" y="24" width="18" height="2.5" fill={hi} />
+          <path d="M14 36 L34 36 L37 46 L11 46 Z" fill={base} />
+          <path d="M24 36 L24 46" stroke={sh} strokeWidth="1" />
+          <rect x="30" y="24" width="3" height="12" fill={sh} />
         </g>
       );
-    case 'side':
+  }
+}
+
+function Hair({ style, base, sh, hi }: { style: number; base: string; sh: string; hi: string }) {
+  switch (style) {
+    case 0: // short
       return (
         <g>
-          <rect x="8" y="6" width="16" height="5" rx="2" fill={color} />
-          <rect x="8" y="9" width="3" height="5" fill={color} />
-          <rect x="8" y="6" width="9" height="3" fill="#ffffff14" />
+          <rect x="14" y="5" width="20" height="7" rx="3" fill={base} />
+          <rect x="14" y="9" width="2" height="6" fill={base} />
+          <rect x="32" y="9" width="2" height="6" fill={base} />
+          <rect x="15" y="5" width="18" height="2" fill={hi} />
+          <rect x="14" y="10" width="20" height="2" fill={sh} />
         </g>
       );
-    case 'bob':
+    case 1: // bob
       return (
         <g>
-          <rect x="7" y="6" width="18" height="6" rx="3" fill={color} />
-          <rect x="7" y="10" width="3" height="8" fill={color} />
-          <rect x="22" y="10" width="3" height="8" fill={color} />
+          <rect x="13" y="5" width="22" height="7" rx="3" fill={base} />
+          <rect x="13" y="9" width="3" height="11" fill={base} />
+          <rect x="32" y="9" width="3" height="11" fill={base} />
+          <rect x="14" y="5" width="20" height="2" fill={hi} />
+          <rect x="13" y="17" width="3" height="3" fill={sh} />
+          <rect x="32" y="17" width="3" height="3" fill={sh} />
         </g>
       );
-    case 'cap':
+    case 2: // wavy
       return (
         <g>
-          <rect x="8" y="5" width="16" height="5" rx="2" fill="#3a5a64" />
-          <rect x="8" y="9" width="18" height="2" fill="#2c474f" />
-          <rect x="8" y="5" width="16" height="2" fill="#4d747f" />
+          <rect x="13" y="4" width="22" height="8" rx="4" fill={base} />
+          <rect x="13" y="10" width="3" height="9" fill={base} />
+          <rect x="32" y="10" width="3" height="9" fill={base} />
+          <rect x="15" y="4" width="6" height="2" fill={hi} />
+          <rect x="24" y="5" width="7" height="2" fill={hi} />
+          <rect x="14" y="16" width="3" height="3" fill={sh} />
+          <rect x="31" y="16" width="3" height="3" fill={sh} />
         </g>
       );
-    case 'pony':
+    case 3: // tied / bun
       return (
         <g>
-          <rect x="8" y="6" width="16" height="5" rx="2" fill={color} />
-          <rect x="8" y="9" width="2" height="4" fill={color} />
-          <rect x="22" y="9" width="2" height="9" fill={color} />
-          <rect x="23" y="13" width="3" height="6" rx="2" fill={color} />
+          <rect x="14" y="5" width="20" height="6" rx="3" fill={base} />
+          <rect x="14" y="9" width="2" height="5" fill={base} />
+          <rect x="32" y="9" width="2" height="5" fill={base} />
+          <rect x="20" y="2" width="8" height="5" rx="3" fill={base} />
+          <rect x="21" y="2" width="6" height="2" fill={hi} />
+          <rect x="15" y="9" width="18" height="2" fill={sh} />
+        </g>
+      );
+    case 4: // side part
+      return (
+        <g>
+          <rect x="14" y="5" width="20" height="7" rx="3" fill={base} />
+          <rect x="14" y="9" width="2" height="6" fill={base} />
+          <rect x="32" y="9" width="3" height="7" fill={base} />
+          <rect x="15" y="5" width="11" height="3" fill={hi} />
+          <rect x="14" y="10" width="20" height="2" fill={sh} />
+        </g>
+      );
+    default: // curly
+      return (
+        <g>
+          {[15, 20, 25, 30].map((x) => (
+            <circle key={x} cx={x} cy="6" r="4" fill={base} />
+          ))}
+          {[16, 22, 28].map((x) => (
+            <circle key={x} cx={x} cy="4.5" r="3" fill={hi} />
+          ))}
+          <rect x="13" y="8" width="3" height="9" fill={base} />
+          <rect x="32" y="8" width="3" height="9" fill={base} />
+          <rect x="14" y="14" width="3" height="3" fill={sh} />
         </g>
       );
   }
