@@ -11,17 +11,24 @@ export function Inspector({
   building,
   floor,
   onEnter,
+  open,
+  onClose,
 }: {
   building: Building;
   floor: Floor | null;
   onEnter: (id: string) => void;
+  open: boolean;
+  onClose: () => void;
 }) {
   const totalActive = building.floors.reduce((n, f) => n + f.activeCount, 0);
   const totalAgents = building.floors.reduce((n, f) => n + f.agents.length, 0);
   const active = building.floors.flatMap((f) => f.agents).filter((a) => a.activity !== 'idle');
 
   return (
-    <aside className="inspector">
+    <aside className={`inspector${open ? ' open' : ''}`} aria-hidden={!open}>
+      <button className="insp-close" onClick={onClose} aria-label="Close">
+        ✕
+      </button>
       <div className="insp-head">
         <span className="insp-eyebrow">Yule HQ</span>
         <h3>{floor ? floor.name : 'Building overview'}</h3>
