@@ -101,113 +101,190 @@ function deskXY(i: number): XY {
   return { x: BULLPEN.x + c * BULLPEN.cw, y: BULLPEN.y + r * BULLPEN.ch };
 }
 
-/** team character → which extra props show in the bottom rooms / right strip */
-function teamProps(name: string): PropItem[] {
+/** team character → accent props along the right margin of the bullpen (y < 190) */
+function bullpenStrip(name: string): PropItem[] {
   const n = name.toLowerCase();
-  const right = 556; // right strip x
+  const right = 556; // right margin x (past the 5th cubicle column)
   if (n.includes('engineering'))
     return [
       { kind: 'server', x: right, y: 24 },
       { kind: 'box', x: right + 6, y: 96 },
       { kind: 'cabinet', x: right + 4, y: 150 },
-      { kind: 'docs', x: 470, y: 250 },
-      { kind: 'server', x: 470, y: 300 },
     ];
   if (n.includes('ai') || n.includes('product'))
     return [
       { kind: 'whiteboard', x: right - 4, y: 22, w: 78 },
       { kind: 'postits', x: right + 16, y: 96 },
       { kind: 'cabinet', x: right + 4, y: 150 },
-      { kind: 'whiteboard', x: 250, y: 226, w: 78 },
-      { kind: 'docs', x: 470, y: 250 },
     ];
   if (n.includes('growth') || n.includes('sales'))
     return [
       { kind: 'whiteboard', x: right - 4, y: 22, w: 78 },
       { kind: 'docs', x: right + 10, y: 96 },
       { kind: 'cabinet', x: right + 4, y: 150 },
-      { kind: 'postits', x: 470, y: 250 },
     ];
-  if (n.includes('platform') || n.includes('ops'))
+  if (n.includes('platform') || n.includes('ops') || n.includes('operation'))
     return [
       { kind: 'server', x: right, y: 24 },
       { kind: 'server', x: right, y: 96 },
       { kind: 'cabinet', x: right + 4, y: 160 },
-      { kind: 'box', x: 470, y: 250 },
-    ];
-  if (n.includes('operation'))
-    return [
-      { kind: 'cabinet', x: right + 4, y: 24 },
-      { kind: 'cabinet', x: right + 34, y: 24 },
-      { kind: 'printer', x: right + 8, y: 100 },
-      { kind: 'docs', x: right + 12, y: 150 },
     ];
   return [
     { kind: 'plant2', x: right + 10, y: 30 },
     { kind: 'cabinet', x: right + 4, y: 110 },
-    { kind: 'docs', x: 470, y: 250 },
   ];
 }
 
+/**
+ * Per-team character of the Tech Lead Office: the roadmap-board flavour plus a
+ * couple of extra props in the support corner and inside the lead office, so
+ * Engineering / Product / Growth / Ops floors don't look copy-pasted.
+ */
+function leadOfficeFlavour(
+  name: string,
+  ctr: number,
+  lead: number,
+  right: number,
+  roomY: number,
+): { board: string; support: PropItem[]; office: PropItem[] } {
+  const n = name.toLowerCase();
+  if (n.includes('engineering'))
+    return {
+      board: 'review', // review / incident board
+      support: [{ kind: 'server', x: ctr + 80, y: roomY + 6 }],
+      office: [{ kind: 'docs', x: lead + 6, y: roomY + 78 }],
+    };
+  if (n.includes('ai') || n.includes('product'))
+    return {
+      board: 'planning',
+      support: [{ kind: 'postits', x: ctr + 82, y: roomY + 10 }],
+      office: [{ kind: 'whiteboard', x: lead + 4, y: roomY + 80, w: 64 }],
+    };
+  if (n.includes('growth') || n.includes('sales'))
+    return {
+      board: 'campaign',
+      support: [{ kind: 'docs', x: ctr + 82, y: roomY + 10 }],
+      office: [{ kind: 'postits', x: lead + 8, y: roomY + 80 }],
+    };
+  if (n.includes('platform') || n.includes('ops') || n.includes('operation'))
+    return {
+      board: 'secure',
+      support: [{ kind: 'cabinet', x: ctr + 80, y: roomY + 6 }],
+      office: [{ kind: 'server', x: lead + 4, y: roomY + 78 }],
+    };
+  return {
+    board: 'roadmap',
+    support: [{ kind: 'docs', x: ctr + 82, y: roomY + 10 }],
+    office: [{ kind: 'plant', x: lead + 6, y: roomY + 80 }],
+  };
+}
+
+/** A floor's tech lead — department coordinator or an explicit *-lead member. */
+function findLead(agents: Floor['teams'][number]['agents']): Floor['teams'][number]['agents'][number] | null {
+  return agents.find((a) => a.kind === 'department' || /lead|coordinator|principal|head/i.test(a.title)) ?? null;
+}
+
 export function buildTeamMap(floor: Floor): FloorMap {
-  const agents = floor.teams.flatMap((t) => t.agents);
-  const rows = Math.min(2, Math.max(2, Math.ceil(agents.length / BULLPEN.cols)));
+  const all = floor.teams.flatMap((t) => t.agents);
+  const lead = findLead(all);
+  const members = all.filter((a) => a !== lead);
+
+  // ── main workspace: cubicle bullpen (the lead sits in the office, not here) ──
+  const rows = 2;
   const slots = rows * BULLPEN.cols;
   const desks: DeskSlot[] = [];
   const seats = new Map<string, Seat>();
   for (let i = 0; i < slots; i++) {
     const { x, y } = deskXY(i);
-    const agent = agents[i] ?? null;
+    const agent = members[i] ?? null;
     desks.push({ x, y, seed: i * 5 + 1, agentId: agent ? agent.id : null });
     if (agent) seats.set(agent.id, { x: x + 49, y: y + 74, agentId: agent.id });
   }
 
-  // bottom three rooms (like the reference: manager office, lounge, private office)
-  const roomY = ART.wall + 200;
-  const roomH = ART.h - roomY - ART.wall;
+  // ── bottom band: Review nook | Support corner | Tech Lead Office ──
+  const roomY = ART.wall + 200; // 207
+  const roomH = ART.h - roomY - ART.wall; // 202
+  const nookX = ART.wall; // 7
+  const ctrX = 256; // support/reception corner
+  const leadX = 378; // tech lead office
+  const rightEdge = ART.w - ART.wall; // 633
+  const flav = leadOfficeFlavour(floor.name, ctrX, leadX, rightEdge, roomY);
+
   const rooms: Room[] = [
-    { x: ART.wall, y: roomY, w: 206, h: roomH, floor: 'carpet', label: 'Lounge' },
-    { x: ART.wall + 210, y: roomY, w: 206, h: roomH, floor: 'tile', label: 'Manager' },
-    { x: ART.wall + 420, y: roomY, w: ART.w - ART.wall * 2 - 420, h: roomH, floor: 'tile', label: 'Focus' },
+    { x: nookX, y: roomY, w: ctrX - nookX - 6, h: roomH, floor: 'carpet', label: 'Review' },
+    { x: ctrX, y: roomY, w: leadX - ctrX - 6, h: roomH, floor: 'carpet', label: 'Support' },
+    { x: leadX, y: roomY, w: rightEdge - leadX, h: roomH, floor: 'tile', label: 'Tech Lead' },
   ];
+  // interior walls with door gaps → a corridor links the bullpen to the offices
   const walls: Wall[] = [
-    { x: ART.wall, y: roomY - 4, w: ART.w - ART.wall * 2, h: 5 }, // divider between bullpen and rooms
-    { x: ART.wall + 206, y: roomY, w: 5, h: roomH },
-    { x: ART.wall + 416, y: roomY, w: 5, h: roomH },
+    { x: nookX, y: roomY - 4, w: 291, h: 5 }, // bullpen↔bottom (left of corridor)
+    { x: 342, y: roomY - 4, w: rightEdge - 342, h: 5 }, // bullpen↔bottom (right of corridor)
+    { x: ctrX - 6, y: roomY + 64, w: 5, h: roomH - 64 }, // nook↔support (door gap at top)
+    { x: leadX - 6, y: roomY, w: 5, h: 36 }, // office wall (top stub)
+    { x: leadX - 6, y: roomY + 96, w: 5, h: roomH - 96 }, // office wall (bottom) → entrance gap
   ];
+
+  // lead desk geometry (also drives the lead's seat + chair)
+  const ldDeskX = leadX + 56;
+  const ldDeskY = roomY + 44;
+  const ldCx = leadX + 122; // desk centre = 500
+  const ldChairY = roomY + 118;
+  if (lead) seats.set(lead.id, { x: ldCx, y: roomY + 132, agentId: lead.id });
 
   const props: PropItem[] = [
-    // lounge — small rug + sofa cluster + cafe corner (not a big empty box)
-    { kind: 'rug', x: ART.wall + 18, y: roomY + 64, w: 120, h: 80, tone: 'rose' },
-    { kind: 'sofa', x: ART.wall + 24, y: roomY + 30 },
-    { kind: 'coffee', x: ART.wall + 30, y: roomY + 100 },
-    { kind: 'plant2', x: ART.wall + 8, y: roomY + 60 },
-    { kind: 'water', x: ART.wall + 170, y: roomY + 18 },
-    { kind: 'plant', x: ART.wall + 168, y: roomY + 110 },
-    { kind: 'docs', x: ART.wall + 150, y: roomY + 60 },
-    { kind: 'trash', x: ART.wall + 178, y: roomY + 150 },
-    // manager / meeting room — desk + chair-ish + printer + plant + board + docs
-    { kind: 'desk-small', x: ART.wall + 268, y: roomY + 36, w: 90, h: 46 },
-    { kind: 'whiteboard', x: ART.wall + 224, y: roomY + 16, w: 76 },
-    { kind: 'printer', x: ART.wall + 224, y: roomY + 116 },
-    { kind: 'plant', x: ART.wall + 326, y: roomY + 116 },
-    { kind: 'docs', x: ART.wall + 360, y: roomY + 40 },
-    { kind: 'box', x: ART.wall + 360, y: roomY + 110 },
-    // private / focus office — desk + monitor + cabinet + plant + bookshelf
-    { kind: 'desk-small', x: ART.wall + 466, y: roomY + 30, w: 96, h: 50 },
-    { kind: 'cabinet', x: ART.wall + 428, y: roomY + 26 },
-    { kind: 'bookshelf', x: ART.wall + 424, y: roomY + 90 },
-    { kind: 'plant2', x: ART.wall + 540, y: roomY + 96 },
-    { kind: 'docs', x: ART.wall + 470, y: roomY + 92 },
-    { kind: 'trash', x: ART.wall + 540, y: roomY + 150 },
-    // scatter near the bullpen edges
+    // ── Review / meeting nook (team gathers here) ──
+    { kind: 'rug', x: nookX + 30, y: roomY + 54, w: 168, h: 120, tone: 'violet' },
+    { kind: 'meeting-table', x: nookX + 62, y: roomY + 78, w: 110, h: 60 },
+    { kind: 'chair', x: nookX + 92, y: roomY + 64 },
+    { kind: 'chair', x: nookX + 150, y: roomY + 64 },
+    { kind: 'chair', x: nookX + 92, y: roomY + 150 },
+    { kind: 'chair', x: nookX + 150, y: roomY + 150 },
+    { kind: 'whiteboard', x: nookX + 40, y: roomY + 6, w: 92 },
+    { kind: 'plant2', x: nookX + 6, y: roomY + 150 },
+    { kind: 'plant', x: nookX + 212, y: roomY + 8 },
+    // ── Support corner: reception/assistant desk + storage/printer ──
+    { kind: 'desk-small', x: ctrX + 18, y: roomY + 44, w: 86, h: 46 },
+    { kind: 'chair', x: ctrX + 61, y: roomY + 102 },
+    { kind: 'cabinet', x: ctrX + 6, y: roomY + 6 },
+    { kind: 'cabinet', x: ctrX + 40, y: roomY + 6 },
+    { kind: 'printer', x: ctrX + 10, y: roomY + 124 },
+    { kind: 'box', x: ctrX + 12, y: roomY + 156 },
+    { kind: 'docs', x: ctrX + 80, y: roomY + 156 },
+    ...flav.support,
+    // ── Tech Lead Office ──
+    { kind: 'rug', x: leadX + 40, y: roomY + 40, w: 168, h: 132, tone: 'rose' },
+    { kind: 'roadmap', x: leadX + 44, y: roomY + 6, w: 132, tone: flav.board },
+    { kind: 'exec-desk', x: ldDeskX, y: ldDeskY, w: 132, h: 62 },
+    { kind: 'chair', x: ldCx, y: ldChairY }, // lead chair (agent sits here)
+    { kind: 'chair', x: leadX + 86, y: roomY + 158 }, // visitor chairs facing the desk
+    { kind: 'chair', x: leadX + 158, y: roomY + 158 },
+    { kind: 'bookshelf', x: leadX + 4, y: roomY + 100 },
+    { kind: 'cabinet', x: rightEdge - 34, y: roomY + 118 },
+    { kind: 'plant2', x: rightEdge - 36, y: roomY + 22 },
+    { kind: 'lamp', x: ldDeskX + 6, y: roomY + 52 }, // desk lamp on the lead desk (left corner)
+    { kind: 'wall-note', x: rightEdge - 98, y: roomY + 6 },
+    { kind: 'status-light', x: rightEdge - 64, y: roomY + 8 },
+    { kind: 'door', x: leadX - 12, y: roomY + 58 },
+    ...flav.office,
+    // ── scatter near the bullpen edges ──
     { kind: 'bookshelf', x: ART.wall + 2, y: 18 },
-    { kind: 'trash', x: 506, y: 182 },
     { kind: 'plant', x: 2, y: 150 },
-    ...teamProps(floor.name),
+    ...bullpenStrip(floor.name),
   ];
 
-  return { desks, seats, props, rooms, walls, accent: floor.accent };
+  // reserved seats — furniture is drawn above; agents slot in here later
+  const placements: Placement[] = [
+    { kind: 'tech-lead', x: ldCx, y: roomY + 132, agentId: lead?.id ?? null },
+    { kind: 'assistant', x: ctrX + 61, y: roomY + 116, agentId: null },
+    { kind: 'visitor', x: leadX + 86, y: roomY + 172, agentId: null },
+    { kind: 'visitor', x: leadX + 158, y: roomY + 172, agentId: null },
+    { kind: 'review', x: nookX + 92, y: roomY + 78, agentId: null },
+    { kind: 'review', x: nookX + 150, y: roomY + 78, agentId: null },
+    { kind: 'review', x: nookX + 92, y: roomY + 164, agentId: null },
+    { kind: 'review', x: nookX + 150, y: roomY + 164, agentId: null },
+  ];
+
+  return { desks, seats, props, rooms, walls, placements, accent: floor.accent };
 }
 
 /** Executive (사장실) — one large office instead of a bullpen. */
