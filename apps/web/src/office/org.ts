@@ -122,7 +122,17 @@ export function buildBuilding(agents: AgentView[]): Building {
     })
     .sort((a, b) => order(a.name) - order(b.name));
 
-  return { floors };
+  // The operator's penthouse — always the top floor, no assigned agents.
+  const executive: Floor = {
+    id: 'executive',
+    name: 'Executive',
+    accent: '#b59bd1',
+    teams: [],
+    agents: [],
+    activeCount: 0,
+  };
+
+  return { floors: [executive, ...floors] };
 }
 
 /** Floor that should be auto-focused in "follow active" mode. */

@@ -14,7 +14,7 @@ export interface XY {
   y: number;
 }
 export interface CubicleSpot extends XY {
-  agentId: string;
+  agentId: string | null; // null = furnished-but-empty workstation (fills the floor)
 }
 export interface TeamLabel {
   name: string;
@@ -29,7 +29,7 @@ export interface ZoneDef {
   seat: (i: number, total: number) => XY;
 }
 
-const WORK = { x: 44, y: 58, cols: 4, cw: 190, ch: 132, top: 92 };
+const WORK = { x: 44, y: 52, cols: 5, cw: 150, ch: 116, top: 82 };
 const RX = 856;
 const RW = 388;
 
@@ -99,25 +99,43 @@ export interface FloorLayout {
   teamLabels: TeamLabel[];
 }
 
-/** Build desks + team labels for a floor. */
+const slotXY = (i: number): XY => {
+  const c = i % WORK.cols;
+  const r = Math.floor(i / WORK.cols);
+  return { x: WORK.x + WORK.cw / 2 + c * WORK.cw, y: WORK.y + WORK.top + r * WORK.ch };
+};
+
+/**
+ * Build the cubicle farm. Agents occupy the first slots; the rest of the grid is
+ * filled with furnished-but-empty workstations so the office reads as a full,
+ * dense floor (not a few desks on an empty plane).
+ */
 export function layoutFloor(floor: Floor): FloorLayout {
   const deskByAgent = new Map<string, XY>();
   const cubicles: CubicleSpot[] = [];
   const teamLabels: TeamLabel[] = [];
-  let i = 0;
+
+  const flat = floor.teams.flatMap((t) => t.agents);
+  const rows = Math.min(3, Math.max(2, Math.ceil(flat.length / WORK.cols)));
+  const slots = rows * WORK.cols;
+
+  flat.forEach((a, i) => {
+    const xy = slotXY(i);
+    deskByAgent.set(a.id, xy);
+    cubicles.push({ agentId: a.id, x: xy.x, y: xy.y });
+  });
+  for (let i = flat.length; i < slots; i++) {
+    const xy = slotXY(i);
+    cubicles.push({ agentId: null, x: xy.x, y: xy.y });
+  }
+
+  // team labels at the first desk of each team
+  let idx = 0;
   for (const team of floor.teams) {
-    let first = true;
-    for (const agent of team.agents) {
-      const c = i % WORK.cols;
-      const r = Math.floor(i / WORK.cols);
-      const seat = { x: WORK.x + WORK.cw / 2 + c * WORK.cw, y: WORK.y + WORK.top + r * WORK.ch };
-      deskByAgent.set(agent.id, seat);
-      cubicles.push({ agentId: agent.id, x: seat.x, y: seat.y });
-      if (first) {
-        teamLabels.push({ name: team.name, x: seat.x, y: seat.y - WORK.top + 10 });
-        first = false;
-      }
-      i++;
+    if (team.agents.length) {
+      const xy = slotXY(idx);
+      teamLabels.push({ name: team.name, x: xy.x, y: xy.y - WORK.top + 8 });
+      idx += team.agents.length;
     }
   }
   return { deskByAgent, cubicles, teamLabels };
