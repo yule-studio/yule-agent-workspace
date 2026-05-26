@@ -42,11 +42,13 @@ export function Character({
   activity,
   walking,
   seated,
+  facing = 'up',
 }: {
   seed: number;
   activity: AgentActivity;
   walking: boolean;
   seated?: boolean;
+  facing?: 'up' | 'down' | 'left' | 'right';
 }) {
   const skin = SKIN[Math.abs(seed) % SKIN.length]!;
   const skinS = shade(skin, 0.84);
@@ -62,18 +64,59 @@ export function Character({
   const beard = seed % 7 === 0;
   const headset = seed % 9 === 0;
 
-  if (seated)
-    return (
-      <div className={`char seated act-${activity}`}>
-        <svg viewBox="0 0 40 42" shapeRendering="crispEdges" width="30" height="32">
-          <ellipse cx="20" cy="39" rx="13" ry="3" fill="#00000040" />
-          <rect className="arm l" x="6" y="14" width="6" height="14" rx="2" fill={fit.ts} />
-          <rect className="arm r" x="28" y="14" width="6" height="14" rx="2" fill={fit.ts} />
-          <rect className="arm l" x="6" y="13" width="6" height="3" fill={skin} />
-          <rect className="arm r" x="28" y="13" width="6" height="3" fill={skin} />
-          <rect x="7" y="22" width="26" height="16" rx="4" fill={fit.top} />
-          <rect x="7" y="22" width="26" height="3" fill={fit.th} />
-          <rect x="28" y="22" width="5" height="16" fill={fit.ts} />
+  if (seated) {
+    // Top-down seated poses, oriented to face the agent's desk/monitor.
+    const torso = (
+      <>
+        <ellipse cx="20" cy="39" rx="13" ry="3" fill="#00000040" />
+        <rect className="arm l" x="6" y="14" width="6" height="14" rx="2" fill={fit.ts} />
+        <rect className="arm r" x="28" y="14" width="6" height="14" rx="2" fill={fit.ts} />
+        <rect className="arm l" x="6" y="13" width="6" height="3" fill={skin} />
+        <rect className="arm r" x="28" y="13" width="6" height="3" fill={skin} />
+        <rect x="7" y="22" width="26" height="16" rx="4" fill={fit.top} />
+        <rect x="7" y="22" width="26" height="3" fill={fit.th} />
+        <rect x="28" y="22" width="5" height="16" fill={fit.ts} />
+      </>
+    );
+    const eyes = (dx = 0) => (
+      <>
+        <rect x={15 + dx} y="11" width="3" height="3" fill="#2a2f38" />
+        <rect x={22 + dx} y="11" width="3" height="3" fill="#2a2f38" />
+        {glasses && <rect x={14 + dx} y="10" width="12" height="5" rx="1" fill="none" stroke="#23262d" strokeWidth="1" />}
+        <rect x={18 + dx} y="16" width="4" height="1.5" fill={skinS} />
+      </>
+    );
+    let head;
+    if (facing === 'down') {
+      // front view — show the face
+      head = (
+        <>
+          <rect x="16" y="19" width="8" height="3" fill={skinS} />
+          <rect x="12" y="6" width="16" height="14" rx="5" fill={skin} />
+          <rect x="11" y="3" width="18" height="6" rx="3" fill={hair} />
+          <rect x="12" y="3" width="16" height="2" fill={hairH} />
+          <rect x="11" y="7" width="3" height="9" fill={hair} />
+          <rect x="26" y="7" width="3" height="9" fill={hair} />
+          {eyes()}
+          {beard && <rect x="14" y="17" width="12" height="3" fill={hairS} opacity="0.7" />}
+        </>
+      );
+    } else if (facing === 'left' || facing === 'right') {
+      const flip = facing === 'right';
+      head = (
+        <g transform={flip ? 'translate(40,0) scale(-1,1)' : undefined}>
+          <rect x="16" y="19" width="8" height="3" fill={skinS} />
+          <rect x="11" y="5" width="17" height="15" rx="5" fill={skin} />
+          <rect x="18" y="3" width="11" height="16" rx="4" fill={hair} />
+          <rect x="18" y="3" width="11" height="3" fill={hairH} />
+          <rect x="13" y="11" width="3" height="3" fill="#2a2f38" />
+          <rect x="11" y="13" width="3" height="2" fill={skinH} />
+        </g>
+      );
+    } else {
+      // up (back view) — hair dome, no face
+      head = (
+        <>
           <rect x="16" y="19" width="8" height="3" fill={skinS} />
           <rect x="11" y="4" width="18" height="16" rx="6" fill={hair} />
           <rect x="12" y="4" width="16" height="3" fill={hairH} />
@@ -83,10 +126,19 @@ export function Character({
           {hairStyle === 3 && <rect x="27" y="14" width="5" height="12" rx="2" fill={hair} />}
           {hairStyle === 4 && <rect x="15" y="1" width="10" height="6" rx="3" fill={hair} />}
           {(hairStyle === 2 || hairStyle === 5) && <rect x="9" y="16" width="22" height="4" rx="2" fill={hair} />}
+        </>
+      );
+    }
+    return (
+      <div className={`char seated face-${facing} act-${activity}`}>
+        <svg viewBox="0 0 40 42" shapeRendering="crispEdges" width="30" height="32">
+          {torso}
+          {head}
           {headset && <rect x="9" y="9" width="3" height="6" fill="#23262d" />}
         </svg>
       </div>
     );
+  }
 
   return (
     <div className={`char act-${activity}${walking ? ' walking' : ''}`}>
