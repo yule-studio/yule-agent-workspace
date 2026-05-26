@@ -1,6 +1,7 @@
 export * from './contract.js';
 export { MockAgentCoreAdapter } from './mock.js';
 export { HttpAgentCoreAdapter, type HttpAdapterOptions } from './http.js';
+export { defaultRoster, getAgentRegistry, loadStudioAgents } from './roster.js';
 
 import type { AgentCoreAdapter } from './contract.js';
 import { HttpAgentCoreAdapter } from './http.js';

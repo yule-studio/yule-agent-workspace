@@ -396,6 +396,8 @@ export class WorkspaceService {
         role: a.role,
         title: a.title,
         kind: a.kind,
+        capabilities: a.capabilities,
+        metadata: a.metadata,
         avatarSeed: a.avatarSeed,
         activity: inMeeting ? 'meeting' : deriveActivity(state),
         locationIntent: deriveLocationIntent(state, inMeeting),

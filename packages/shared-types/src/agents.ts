@@ -24,6 +24,10 @@ export interface StudioAgent {
   /** Member slug / title, e.g. "backend-engineer" or "coordinator". */
   title: string;
   kind: AgentKind;
+  /** Capability tags used for floor/team classification (e.g. ["backend"]). */
+  capabilities: string[];
+  /** Optional explicit floor/team override (wins over heuristics). */
+  metadata: { floor?: string; team?: string } | null;
   /** Deterministic seed for the character's appearance. */
   avatarSeed: number;
 }
@@ -61,6 +65,8 @@ export interface AgentView {
   role: AgentRole;
   title: string;
   kind: AgentKind;
+  capabilities: string[];
+  metadata: { floor?: string; team?: string } | null;
   avatarSeed: number;
   activity: AgentActivity;
   locationIntent: LocationIntent;

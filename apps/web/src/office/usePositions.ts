@@ -1,83 +1,73 @@
 'use client';
 /**
- * Movement engine. Each agent has a current position that eases toward a target
- * seat derived from its state/locationIntent. A requestAnimationFrame loop runs
- * only while something is moving (it stops when everyone is seated, so idle
- * agents cost nothing). This is what makes characters *walk* between the desk
- * farm, the meeting room, the review table, the lounge, etc. — movement is tied
- * to agent state, not random decoration.
+ * Movement engine for the visible floor. Each agent eases toward the seat its
+ * state implies (desk / meeting / review / standup / lounge). A rAF loop runs
+ * only while something moves, so a settled floor costs nothing.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentView } from '@yule/shared-types';
-import { assignDesks, resolveTargets } from './stage.js';
-import type { Seat } from './types.js';
+import { resolveFloorTargets, type XY } from './layout.js';
 
-const SPEED = 0.14; // px per ms (~140 px/s walking pace)
+const SPEED = 0.16; // px/ms
 
 export interface Positioned {
-  pos: Seat;
+  pos: XY;
   walking: boolean;
 }
 
-export function usePositions(agents: AgentView[]): Map<string, Positioned> {
-  const positions = useRef(new Map<string, Seat>());
+export function usePositions(agents: AgentView[], deskByAgent: Map<string, XY>): Map<string, Positioned> {
+  const positions = useRef(new Map<string, XY>());
   const [, tick] = useState(0);
-  const rafRef = useRef<number | null>(null);
-  const lastRef = useRef<number>(0);
+  const raf = useRef<number | null>(null);
+  const last = useRef(0);
 
-  // Recompute targets whenever the agent set / their intents change.
-  const targets = useMemo(() => {
-    const deskList = assignDesks(agents);
-    const desks = new Map(deskList.map((d) => [d.agentId, d.seat]));
-    return resolveTargets(agents, desks);
-    // Re-run when an agent appears/leaves or changes where it wants to be.
-  }, [agents.map((a) => `${a.id}:${a.locationIntent}`).join('|')]);
+  const targets = useMemo(
+    () => resolveFloorTargets(agents, deskByAgent),
+    // recompute when the floor's agents or their intents change
+    [agents.map((a) => `${a.id}:${a.locationIntent}`).join('|'), deskByAgent],
+  );
 
-  // Seed positions for agents we have not seen (appear at their seat).
   for (const a of agents) {
-    if (!positions.current.has(a.id)) {
-      positions.current.set(a.id, { ...(targets.get(a.id) ?? { x: 200, y: 240 }) });
-    }
+    if (!positions.current.has(a.id)) positions.current.set(a.id, { ...(targets.get(a.id) ?? { x: 220, y: 240 }) });
   }
 
   useEffect(() => {
     const step = (t: number) => {
-      const dt = Math.min(48, t - (lastRef.current || t));
-      lastRef.current = t;
+      const dt = Math.min(48, t - (last.current || t));
+      last.current = t;
       let moving = false;
       for (const a of agents) {
         const p = positions.current.get(a.id);
-        const target = targets.get(a.id);
-        if (!p || !target) continue;
-        const dx = target.x - p.x;
-        const dy = target.y - p.y;
+        const tg = targets.get(a.id);
+        if (!p || !tg) continue;
+        const dx = tg.x - p.x;
+        const dy = tg.y - p.y;
         const dist = Math.hypot(dx, dy);
         if (dist < 0.6) {
-          p.x = target.x;
-          p.y = target.y;
+          p.x = tg.x;
+          p.y = tg.y;
           continue;
         }
-        const move = Math.min(dist, SPEED * dt);
-        p.x += (dx / dist) * move;
-        p.y += (dy / dist) * move;
+        const m = Math.min(dist, SPEED * dt);
+        p.x += (dx / dist) * m;
+        p.y += (dy / dist) * m;
         moving = true;
       }
       tick((n) => n + 1);
-      rafRef.current = moving ? requestAnimationFrame(step) : null;
+      raf.current = moving ? requestAnimationFrame(step) : null;
     };
-    lastRef.current = 0;
-    rafRef.current = requestAnimationFrame(step);
+    last.current = 0;
+    raf.current = requestAnimationFrame(step);
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (raf.current) cancelAnimationFrame(raf.current);
     };
   }, [targets, agents]);
 
   const out = new Map<string, Positioned>();
   for (const a of agents) {
-    const p = positions.current.get(a.id) ?? { x: 200, y: 240 };
-    const target = targets.get(a.id);
-    const walking = !!target && Math.hypot(target.x - p.x, target.y - p.y) > 2;
-    out.set(a.id, { pos: { x: p.x, y: p.y }, walking });
+    const p = positions.current.get(a.id) ?? { x: 220, y: 240 };
+    const tg = targets.get(a.id);
+    out.set(a.id, { pos: { x: p.x, y: p.y }, walking: !!tg && Math.hypot(tg.x - p.x, tg.y - p.y) > 2 });
   }
   return out;
 }
