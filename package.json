@@ -1,0 +1,30 @@
+{
+  "name": "yule-agent-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Operating workspace for yule-studio-agent — canonical session/task state, pixel-office visualization, GitHub/Discord/Vault bridges, token-aware 24/7 runtime.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/api & npm run dev --workspace apps/web & wait",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:bot": "npm run dev --workspace apps/discord-bot",
+    "seed": "npm run seed --workspace apps/api",
+    "typecheck": "tsc --build",
+    "test": "npm run test --workspace packages/core",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

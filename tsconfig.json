@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared-types" },
+    { "path": "packages/core" },
+    { "path": "packages/agent-core-adapter" },
+    { "path": "apps/api" }
+  ]
+}
