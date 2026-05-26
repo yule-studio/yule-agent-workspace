@@ -298,6 +298,121 @@ function prop(ctx: CanvasRenderingContext2D, kind: PropKind, x: number, y: numbe
       ctx.strokeRect(x + 12, y + 12, W - 24, H - 24);
       return;
     }
+    case 'chair':
+      return chair(ctx, x, y);
+    case 'exec-desk': {
+      const dw = w || 132;
+      const dh = h || 62;
+      P(ctx, x + 4, y + dh - 1, dw, 7, '#00000026'); // floor contact shadow
+      // low credenza panel behind the desk (depth backdrop)
+      P(ctx, x + 10, y - 7, dw - 20, 7, C.part);
+      P(ctx, x + 10, y - 7, dw - 20, 2, C.partHi);
+      P(ctx, x + 10, y, dw - 20, 2, '#00000026');
+      // desk top surface + edges
+      P(ctx, x, y + 2, dw, dh - 12, C.desk);
+      P(ctx, x, y + 2, dw, 2, C.deskHi); // back highlight
+      P(ctx, x, y + 4, 2, dh - 14, '#9aa0a8'); // left lit side
+      P(ctx, x + dw - 2, y + 4, 2, dh - 14, C.deskSh); // right shadow side
+      P(ctx, x, y + dh - 10, dw, 9, C.deskSh); // thick FRONT edge (vertical face)
+      P(ctx, x, y + dh - 1, dw, 1, C.deskEdge);
+      P(ctx, x + Math.round(dw * 0.32), y + 5, 1, dh - 18, C.grain);
+      P(ctx, x + Math.round(dw * 0.66), y + 5, 1, dh - 18, C.grain);
+      // dual monitors (with stand + contact shadow)
+      const monE = (mx: number, scr: number) => {
+        P(ctx, mx, y + 18, 22, 2, '#00000026');
+        P(ctx, mx + 9, y + 16, 4, 3, C.bezel);
+        P(ctx, mx + 4, y + 18, 14, 2, C.bezel);
+        P(ctx, mx, y + 3, 22, 15, C.bezel);
+        P(ctx, mx, y + 3, 22, 2, C.bezelHi);
+        drawScreen(ctx, mx + 2, y + 5, 18, 11, scr);
+      };
+      monE(x + dw / 2 - 27, 0);
+      monE(x + dw / 2 + 5, 3);
+      // papers + cup on the right
+      P(ctx, x + dw - 30, y + dh - 26, 14, 13, '#00000018');
+      P(ctx, x + dw - 31, y + dh - 28, 14, 13, C.paper);
+      for (let i = 0; i < 3; i++) P(ctx, x + dw - 29, y + dh - 25 + i * 3, [9, 7, 10][i]!, 1, C.paperLn);
+      P(ctx, x + dw - 15, y + dh - 22, 7, 8, C.accent[0]!);
+      P(ctx, x + dw - 15, y + dh - 22, 7, 2, '#ffffff55');
+      // keyboard + mouse centred at the front
+      P(ctx, x + dw / 2 - 13, y + dh - 16, 26, 5, C.key);
+      P(ctx, x + dw / 2 - 13, y + dh - 16, 26, 1, C.keyDk);
+      P(ctx, x + dw / 2 + 16, y + dh - 15, 4, 4, C.key);
+      return;
+    }
+    case 'meeting-table': {
+      const dw = w || 108;
+      const dh = h || 58;
+      P(ctx, x + 4, y + dh - 1, dw - 6, 6, '#00000022'); // contact shadow
+      // top-down oval-ish table top (stepped corners) + thickness
+      P(ctx, x + 6, y, dw - 12, 3, C.desk);
+      P(ctx, x, y + 6, dw, dh - 16, C.desk);
+      P(ctx, x + 6, y + dh - 12, dw - 12, 3, C.desk);
+      P(ctx, x + 6, y, dw - 12, 2, C.deskHi);
+      P(ctx, x, y + 6, 2, dh - 16, '#9aa0a8'); // left lit side
+      P(ctx, x + dw - 2, y + 6, 2, dh - 16, C.deskSh); // right shadow side
+      P(ctx, x, y + dh - 12, dw, 4, C.deskSh); // front edge
+      P(ctx, x + 6, y + dh - 8, dw - 12, 1, C.deskEdge);
+      // laptop + papers + cups on the table
+      P(ctx, x + dw / 2 - 12, y + dh / 2 - 7, 24, 12, '#23272f');
+      drawScreen(ctx, x + dw / 2 - 10, y + dh / 2 - 5, 20, 8, 1);
+      P(ctx, x + 16, y + 12, 12, 9, C.paper);
+      P(ctx, x + dw - 30, y + 14, 7, 8, C.accent[2]!);
+      P(ctx, x + dw - 20, y + dh - 22, 6, 7, C.accent[0]!);
+      return;
+    }
+    case 'lamp':
+      P(ctx, x - 2, y + 14, 13, 3, '#00000022'); // contact shadow
+      P(ctx, x + 1, y + 1, 11, 7, '#cdd1ef22'); // soft glow pool
+      P(ctx, x, y + 12, 8, 3, C.metal); // base
+      P(ctx, x, y + 12, 8, 1, C.metalHi);
+      P(ctx, x + 3, y + 4, 2, 9, C.metalSh); // arm
+      P(ctx, x + 4, y + 1, 6, 4, C.metal); // head
+      P(ctx, x + 5, y + 4, 4, 2, '#cdd1ef'); // light
+      return;
+    case 'status-light':
+      P(ctx, x, y, 18, 8, '#2c323b'); // housing
+      P(ctx, x, y, 18, 2, '#3a414c');
+      P(ctx, x + 3, y + 3, 3, 3, C.green2);
+      P(ctx, x + 8, y + 3, 3, 3, C.accent[0]!);
+      P(ctx, x + 13, y + 3, 3, 3, C.accent[3]!);
+      return;
+    case 'wall-note': {
+      const pw = w || 22;
+      const ph = h || 28;
+      P(ctx, x, y, pw, ph, '#2c323b'); // frame
+      P(ctx, x + 2, y + 2, pw - 4, ph - 4, C.paper);
+      P(ctx, x + 4, y + 4, pw - 8, ph - 14, C.accent[seed % C.accent.length]!); // image
+      for (let i = 0; i < 3; i++) P(ctx, x + 4, y + ph - 9 + i * 2, pw - 8 - i * 2, 1, C.paperLn);
+      return;
+    }
+    case 'roadmap': {
+      const bw = w || 132;
+      const bh = 26;
+      const pal: Record<string, string[]> = {
+        review: ['#8c93d8', '#9fbd9f', '#e47b89'],
+        planning: ['#a99cff', '#8c93d8', '#9fbd9f'],
+        campaign: ['#d98aa5', '#e47b89', '#b58ac4'],
+        secure: ['#9fbd9f', '#8c93d8', '#a99cff'],
+      };
+      const cols = pal[tone] ?? ['#a99cff', '#9fbd9f', '#d98aa5'];
+      P(ctx, x, y, bw, bh, '#aab0bb'); // frame
+      P(ctx, x + 2, y + 2, bw - 4, bh - 4, '#eef0f4'); // board
+      const colw = (bw - 8) / 3;
+      for (let c = 0; c < 3; c++) {
+        const cxp = x + 4 + c * colw;
+        if (c > 0) P(ctx, cxp, y + 4, 1, bh - 8, '#c6cad2'); // column divider
+        for (let r = 0; r < 3; r++) P(ctx, cxp + 3, y + 5 + r * 5, colw - 8, 3, cols[(c + r) % 3]!); // cards
+      }
+      return;
+    }
+    case 'door':
+      P(ctx, x, y, 6, 40, '#00000018'); // shadow lip into the corridor
+      P(ctx, x + 6, y + 6, 12, 28, C.tile[0]!); // threshold mat
+      P(ctx, x + 6, y + 6, 12, 2, C.tile[1]!);
+      P(ctx, x + 4, y, 3, 40, C.wallSh); // frame posts
+      P(ctx, x + 17, y, 3, 40, C.wallSh);
+      return;
   }
 }
 
