@@ -11,6 +11,11 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "theme_color": "#16110d",
