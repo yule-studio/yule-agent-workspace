@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import '../office/office.css';
-import { Nav } from '@/components/Nav';
+import { Shell } from '@/components/Shell';
 
 export const viewport: Viewport = {
   themeColor: '#16110d',
@@ -26,10 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <div className="layout">
-          <Nav />
-          <main className="main">{children}</main>
-        </div>
+        <Shell>{children}</Shell>
       </body>
     </html>
   );
