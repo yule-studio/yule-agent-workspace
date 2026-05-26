@@ -5,8 +5,8 @@
  * UI never polls, mirroring the backend's event-driven design.
  */
 import { useEffect, useRef, useState } from 'react';
-import type { WorkspaceEvent, WorkspaceEventType } from '@yule/shared-types';
-import { API_URL } from './api';
+import type { AgentView, MeetingView, WorkspaceEvent, WorkspaceEventType } from '@yule/shared-types';
+import { api, API_URL, type StatusPayload } from './api';
 
 type Handler = (e: WorkspaceEvent) => void;
 
@@ -99,4 +99,27 @@ export function useLive<T>(
   }, deps);
 
   return { data, error, loading, reload };
+}
+
+/** Events that change agent presence / office layout. */
+const AGENT_EVENTS: WorkspaceEventType[] = [
+  'agent.presence',
+  'session.created',
+  'session.transition',
+  'session.escalation',
+];
+
+/**
+ * The single shared agent/session source. The dashboard and the pixel office
+ * both call this so they can never drift onto different data.
+ */
+export function useAgents() {
+  return useLive<{ agents: AgentView[]; meetings: MeetingView[] }>(() => api.agents(), AGENT_EVENTS);
+}
+
+export function useStatus() {
+  return useLive<StatusPayload>(
+    () => api.status(),
+    ['session.transition', 'session.created', 'task.created', 'agent.presence'],
+  );
 }

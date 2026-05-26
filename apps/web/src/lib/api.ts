@@ -4,7 +4,8 @@
  * come from the shared package so the contract is single-sourced.
  */
 import type {
-  AgentPresence,
+  AgentView,
+  MeetingView,
   Session,
   SessionTransition,
   Task,
@@ -31,16 +32,21 @@ export interface StatusPayload {
   now: string;
   adapter: { mode: string; engineUrl?: string };
   tasks: number;
+  agents: number;
+  activeAgents: number;
   activeSessions: number;
+  meetings: number;
+  blocked: number;
+  failed: number;
   sessionsByState: Record<string, number>;
   tokens: { spentToday: number; dailyCap: number; byRole: Record<string, number> };
 }
 
 export const api = {
   status: () => request<StatusPayload>('/api/status'),
-  agents: () => request<{ agents: AgentPresence[] }>('/api/agents'),
-  agent: (role: string) =>
-    request<{ presence: AgentPresence; tasks: Task[] }>(`/api/agents/${role}`),
+  agents: () => request<{ agents: AgentView[]; meetings: MeetingView[] }>('/api/agents'),
+  agentsByRole: (role: string) =>
+    request<{ role: string; agents: AgentView[]; tasks: Task[] }>(`/api/agents/by-role/${role}`),
   tasks: () => request<{ tasks: Task[] }>('/api/tasks'),
   task: (id: string) => request<{ task: Task; sessions: Session[] }>(`/api/tasks/${id}`),
   session: (id: string) =>

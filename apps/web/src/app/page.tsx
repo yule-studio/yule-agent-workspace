@@ -1,22 +1,21 @@
 'use client';
 import Link from 'next/link';
-import { api, type StatusPayload } from '@/lib/api';
-import { useLive } from '@/lib/live';
+import { useAgents, useStatus } from '@/lib/live';
 import { ConnectionDot } from '@/components/Nav';
 import { StateBadge, ModePill } from '@/components/StateBadge';
-import type { AgentPresence } from '@yule/shared-types';
+import { AGENT_ROLE_LABEL } from '@yule/shared-types';
 
 export default function Dashboard() {
-  const status = useLive<StatusPayload>(() => api.status(), ['session.transition', 'task.created', 'session.created']);
-  const agents = useLive<{ agents: AgentPresence[] }>(
-    () => api.agents(),
-    ['agent.presence', 'session.transition'],
-  );
-
+  const status = useStatus();
+  const live = useAgents();
   const s = status.data;
-  const waiting = (agents.data?.agents ?? []).filter(
-    (a) => a.state === 'awaiting_approval' || a.state === 'blocked' || a.state === 'ready_to_merge',
+  const agents = live.data?.agents ?? [];
+  const meetings = live.data?.meetings ?? [];
+
+  const needs = agents.filter((a) =>
+    ['awaiting_approval', 'blocked', 'ready_to_merge', 'failed'].includes(a.state ?? ''),
   );
+  const busy = agents.filter((a) => a.activity !== 'idle');
 
   return (
     <div>
@@ -29,40 +28,46 @@ export default function Dashboard() {
 
       <div className="grid cols-4">
         <div className="card">
-          <h3>Tasks</h3>
-          <div className="stat">{s?.tasks ?? '—'}</div>
+          <h3>Agents</h3>
+          <div className="stat">
+            {s?.agents ?? agents.length}
+            <span className="unit"> · {s?.activeAgents ?? busy.length} active</span>
+          </div>
+          <span className="small muted">registry · {live.data ? new Set(agents.map((a) => a.role)).size : '—'} departments</span>
         </div>
         <div className="card">
           <h3>Active sessions</h3>
           <div className="stat">{s?.activeSessions ?? '—'}</div>
+          <span className="small muted">{s?.meetings ?? meetings.length} meeting(s)</span>
+        </div>
+        <div className="card">
+          <h3>Needs attention</h3>
+          <div className="stat" style={{ color: needs.length ? 'var(--s-awaiting_approval)' : undefined }}>
+            {needs.length}
+          </div>
+          <span className="small muted">{s?.blocked ?? 0} blocked · {s?.failed ?? 0} failed</span>
         </div>
         <div className="card">
           <h3>Tokens today</h3>
           <div className="stat">
             {s ? (s.tokens.spentToday / 1000).toFixed(1) : '—'}
-            <span className="unit"> k / {s ? (s.tokens.dailyCap / 1000).toFixed(0) : '—'}k cap</span>
+            <span className="unit"> k / {s ? (s.tokens.dailyCap / 1000).toFixed(0) : '—'}k</span>
           </div>
           <div className="bar" style={{ marginTop: 8 }}>
             <span style={{ width: `${s ? Math.min(100, (s.tokens.spentToday / s.tokens.dailyCap) * 100) : 0}%` }} />
           </div>
-        </div>
-        <div className="card">
-          <h3>Engine</h3>
-          <div className="stat" style={{ fontSize: 20 }}>
-            {s?.adapter.mode ?? '—'}
-          </div>
-          <span className="small muted">agent-core adapter</span>
         </div>
       </div>
 
       <div className="grid cols-3" style={{ marginTop: 16 }}>
         <div className="card" style={{ gridColumn: 'span 2' }}>
           <h3>Needs you</h3>
-          {waiting.length === 0 && <p className="muted small">Nothing waiting — all clear.</p>}
-          {waiting.map((a) => (
-            <div key={a.role} className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+          {needs.length === 0 && <p className="muted small">Nothing waiting — all clear.</p>}
+          {needs.map((a) => (
+            <div key={a.id} className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
               <span>
-                <strong>{a.role}</strong> <StateBadge state={a.state} />
+                <strong>{a.name}</strong> <span className="small muted">{AGENT_ROLE_LABEL[a.role]}</span>{' '}
+                <StateBadge state={a.state} />
               </span>
               <span className="small muted">{a.statusLine}</span>
               {a.currentSessionId && <Link href={`/sessions/${a.currentSessionId}`}>open →</Link>}
@@ -82,35 +87,41 @@ export default function Dashboard() {
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <h3>Agents</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>State</th>
-              <th>Mode</th>
-              <th>Status</th>
-              <th>Tokens today</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(agents.data?.agents ?? []).map((a) => (
-              <tr key={a.role}>
-                <td>
-                  <Link href={`/agents/${a.role}`}>{a.role}</Link>
-                </td>
-                <td>
-                  <StateBadge state={a.state} />
-                </td>
-                <td>
-                  <ModePill mode={a.mode} />
-                </td>
-                <td className="muted small">{a.statusLine ?? '—'}</td>
-                <td className="mono">{a.tokensToday.toLocaleString()}</td>
+        <h3>Working now ({busy.length})</h3>
+        {busy.length === 0 ? (
+          <p className="muted small">All agents idle.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Dept</th>
+                <th>Activity</th>
+                <th>State</th>
+                <th>Mode</th>
+                <th>Task</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {busy.map((a) => (
+                <tr key={a.id}>
+                  <td>
+                    {a.currentSessionId ? <Link href={`/sessions/${a.currentSessionId}`}>{a.name}</Link> : a.name}
+                  </td>
+                  <td className="small muted">{AGENT_ROLE_LABEL[a.role]}</td>
+                  <td>{a.activity}</td>
+                  <td>
+                    <StateBadge state={a.state} />
+                  </td>
+                  <td>
+                    <ModePill mode={a.mode} />
+                  </td>
+                  <td className="muted small">{a.currentTaskTitle ?? a.statusLine ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
