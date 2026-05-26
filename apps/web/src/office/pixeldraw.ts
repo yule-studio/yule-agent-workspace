@@ -69,82 +69,89 @@ function drawScreen(ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   }
 }
 
+/**
+ * One workstation drawn top-down with real layering/thickness:
+ * back partition (top face + front face + cast shadow) → desk slab (top surface
+ * + back highlight + thick FRONT edge + side edges) → monitor (screen + stand +
+ * contact shadow) → desk props. The chair + agent are drawn in FRONT (below).
+ */
 function workstation(ctx: CanvasRenderingContext2D, x: number, y: number, seed: number) {
   const dual = seed % 3 !== 0;
-  // cast shadow on the floor (depth)
-  P(ctx, x + 4, y + 56, 92, 8, '#00000026');
-  P(ctx, x + 96, y + 8, 4, 50, '#00000018');
-  // cubicle side partitions (thin, shaded — enclose the desk)
-  P(ctx, x, y + 2, 5, 54, C.part);
-  P(ctx, x, y + 2, 5, 2, C.partHi);
-  P(ctx, x + 3, y + 2, 2, 54, C.partSh);
-  P(ctx, x + 91, y + 2, 5, 54, C.part);
-  P(ctx, x + 91, y + 2, 5, 2, C.partHi);
-  P(ctx, x + 91, y + 2, 2, 54, C.partSh);
-  // back partition (taller) + pinboard + postits
-  P(ctx, x, y, 96, 10, C.part);
-  P(ctx, x, y, 96, 2, C.partHi);
-  P(ctx, x, y + 8, 96, 2, C.partSh);
-  P(ctx, x + 5, y + 10, 86, 3, '#00000026'); // partition casts onto desk → depth
-  P(ctx, x + 60, y + 2, 16, 6, '#2c323b'); // small pinboard
-  P(ctx, x + 8, y + 2, 5, 5, C.accent[seed % C.accent.length]!);
-  P(ctx, x + 15, y + 2, 5, 5, C.accent[(seed + 2) % C.accent.length]!);
-  // desk surface (inset between walls) + back lip riser (pseudo-3D)
-  P(ctx, x + 5, y + 26, 86, 27, C.desk);
-  P(ctx, x + 5, y + 24, 86, 2, C.deskHi); // back lip catches light
-  P(ctx, x + 5, y + 26, 86, 2, C.deskHi);
-  P(ctx, x + 5, y + 50, 86, 3, C.deskSh);
-  P(ctx, x + 5, y + 53, 86, 1, C.deskEdge);
-  P(ctx, x + 30, y + 28, 1, 22, C.grain); // seam
-  P(ctx, x + 58, y + 28, 1, 22, C.grain);
-  // monitors (with cast shadow on desk)
-  const m1 = dual ? x + 22 : x + 38;
-  P(ctx, m1 + 1, y + 26, 18, 3, '#00000022');
-  P(ctx, m1 + 7, y + 25, 4, 3, C.bezel);
-  P(ctx, m1, y + 13, 20, 14, C.bezel);
-  P(ctx, m1, y + 13, 20, 2, C.bezelHi);
-  drawScreen(ctx, m1 + 2, y + 15, 16, 10, seed);
-  if (dual) {
-    const m2 = x + 50;
-    P(ctx, m2 + 1, y + 26, 18, 3, '#00000022');
-    P(ctx, m2 + 7, y + 25, 4, 3, C.bezel);
-    P(ctx, m2, y + 13, 20, 14, C.bezel);
-    P(ctx, m2, y + 13, 20, 2, C.bezelHi);
-    drawScreen(ctx, m2 + 2, y + 15, 16, 10, seed + 2);
+  const ix = x + 6;
+  const iw = 84;
+  // floor contact shadow (blocky) under the desk + chair zone
+  P(ctx, x + 8, y + 47, 82, 8, '#00000022');
+  // ── side dividers (cubicle walls w/ top + front face) ──
+  for (const sx of [x, x + 91]) {
+    P(ctx, sx, y + 2, 5, 42, C.part);
+    P(ctx, sx, y + 2, 5, 2, C.partHi);
+    P(ctx, sx + 3, y + 2, 2, 42, C.partSh);
   }
-  // keyboard + mouse
-  P(ctx, x + 34, y + 42, 26, 7, C.key);
-  P(ctx, x + 34, y + 42, 26, 1, C.keyDk);
-  for (let r = 0; r < 2; r++) for (let c = 0; c < 8; c++) P(ctx, x + 36 + c * 3, y + 44 + r * 2, 2, 1, C.keyDk);
-  P(ctx, x + 63, y + 44, 4, 5, C.key);
-  // papers (stacked w/ shadow) + mug + cable
-  P(ctx, x + 9, y + 35, 13, 16, '#00000018');
-  P(ctx, x + 8, y + 33, 13, 16, C.paper);
-  for (let i = 0; i < 4; i++) P(ctx, x + 10, y + 36 + i * 3, [9, 7, 10, 6][i]!, 1, C.paperLn);
-  P(ctx, x + 75, y + 37, 8, 9, C.accent[(seed + 1) % C.accent.length]!);
-  P(ctx, x + 75, y + 37, 8, 2, '#ffffff55');
-  P(ctx, x + 83, y + 39, 2, 4, C.accent[(seed + 1) % C.accent.length]!);
-  P(ctx, x + 44, y + 27, 1, 4, '#2a2f38'); // cable to monitor
-  // sticky note + optional desk plant / small box
-  P(ctx, x + 28, y + 30, 4, 4, '#e0d96a');
+  // ── back partition: top face + highlight + FRONT face (thickness) + cast shadow ──
+  P(ctx, x + 4, y, 88, 6, C.part);
+  P(ctx, x + 4, y, 88, 2, C.partHi);
+  P(ctx, x + 4, y + 6, 88, 3, C.partSh);
+  P(ctx, ix, y + 9, iw, 2, '#00000028');
+  P(ctx, x + 58, y + 1, 16, 4, '#2c323b'); // pinboard
+  P(ctx, x + 9, y + 1, 4, 4, C.accent[seed % C.accent.length]!);
+  P(ctx, x + 15, y + 1, 4, 4, C.accent[(seed + 2) % C.accent.length]!);
+  // ── desk slab: top surface + back highlight + FRONT edge + side edges ──
+  P(ctx, ix, y + 11, iw, 33, C.desk);
+  P(ctx, ix, y + 11, iw, 2, C.deskHi);
+  P(ctx, ix, y + 13, 2, 31, '#9aa0a8'); // left side (lit)
+  P(ctx, ix + iw - 2, y + 13, 2, 31, C.deskSh); // right side (shadow)
+  P(ctx, ix, y + 44, iw, 6, C.deskSh); // FRONT edge (vertical face) — thickness
+  P(ctx, ix, y + 50, iw, 1, C.deskEdge);
+  P(ctx, ix + 26, y + 14, 1, 28, C.grain);
+  P(ctx, ix + 54, y + 14, 1, 28, C.grain);
+  // ── monitors (screen + stand + contact shadow on desk) ──
+  const mon = (mx: number, scr: number) => {
+    P(ctx, mx, y + 30, 20, 2, '#00000026'); // contact shadow
+    P(ctx, mx + 8, y + 28, 4, 3, C.bezel); // stand neck
+    P(ctx, mx + 4, y + 30, 12, 2, C.bezel); // base
+    P(ctx, mx, y + 15, 20, 14, C.bezel);
+    P(ctx, mx, y + 15, 20, 2, C.bezelHi);
+    drawScreen(ctx, mx + 2, y + 17, 16, 10, scr);
+  };
+  if (dual) {
+    mon(ix + 12, seed);
+    mon(ix + 44, seed + 2);
+  } else {
+    mon(ix + 32, seed);
+  }
+  P(ctx, ix + 42, y + 31, 1, 3, '#2a2f38'); // cable
+  // ── desk props (on the top surface, front area) ──
+  P(ctx, ix + 26, y + 37, 26, 6, C.key);
+  P(ctx, ix + 26, y + 37, 26, 1, C.keyDk);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 8; c++) P(ctx, ix + 28 + c * 3, y + 39 + r * 2, 2, 1, C.keyDk);
+  P(ctx, ix + 56, y + 39, 4, 4, C.key); // mouse
+  P(ctx, ix + 3, y + 31, 12, 12, '#00000018'); // paper shadow
+  P(ctx, ix + 2, y + 29, 12, 12, C.paper);
+  for (let i = 0; i < 3; i++) P(ctx, ix + 4, y + 32 + i * 3, [8, 6, 9][i]!, 1, C.paperLn);
+  P(ctx, ix + 66, y + 33, 7, 8, C.accent[(seed + 1) % C.accent.length]!); // mug
+  P(ctx, ix + 66, y + 33, 7, 2, '#ffffff55');
+  P(ctx, ix + 20, y + 22, 4, 4, '#e0d96a'); // sticky note on partition base
   if (seed % 4 === 1) {
-    P(ctx, x + 84, y + 28, 8, 7, C.pot);
-    P(ctx, x + 83, y + 24, 10, 6, C.green2);
+    P(ctx, ix + 74, y + 28, 8, 6, C.pot);
+    P(ctx, ix + 73, y + 25, 10, 5, C.green2);
   } else if (seed % 4 === 3) {
-    P(ctx, x + 84, y + 30, 8, 6, C.box);
-    P(ctx, x + 84, y + 30, 8, 2, C.boxHi);
+    P(ctx, ix + 74, y + 30, 8, 6, C.box);
+    P(ctx, ix + 74, y + 30, 8, 2, C.boxHi);
   }
 }
 
+/** Top-down office chair facing the desk (person sits facing away/up). */
 function chair(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
-  P(ctx, cx - 11, cy + 8, 22, 3, '#00000033'); // shadow
-  P(ctx, cx - 8, cy - 8, 16, 6, C.chair); // back
-  P(ctx, cx - 8, cy - 8, 16, 2, C.chairHi);
-  P(ctx, cx - 9, cy - 2, 3, 8, C.metalSh); // armrests
-  P(ctx, cx + 6, cy - 2, 3, 8, C.metalSh);
-  P(ctx, cx - 8, cy - 2, 16, 11, C.chairSeat);
-  P(ctx, cx - 5, cy, 10, 7, C.chairHi);
-  P(ctx, cx - 1, cy + 9, 2, 3, C.wheel);
+  P(ctx, cx - 12, cy + 9, 24, 4, '#00000028'); // floor contact shadow
+  for (const dx of [-9, -4, 1, 6]) P(ctx, cx + dx, cy + 6, 3, 2, C.metalSh); // base spokes
+  P(ctx, cx - 2, cy + 1, 4, 6, C.metalSh); // gas lift
+  P(ctx, cx - 9, cy - 4, 18, 11, C.chairSeat); // seat top
+  P(ctx, cx - 9, cy - 4, 18, 2, C.chairHi); // seat highlight
+  P(ctx, cx - 9, cy + 5, 18, 2, C.chair); // seat front edge
+  P(ctx, cx - 11, cy - 2, 3, 9, C.chair); // armrests
+  P(ctx, cx + 8, cy - 2, 3, 9, C.chair);
+  P(ctx, cx - 8, cy + 7, 16, 6, C.chair); // backrest (toward viewer)
+  P(ctx, cx - 8, cy + 7, 16, 2, C.chairHi);
 }
 
 function plant(ctx: CanvasRenderingContext2D, x: number, y: number, tall: boolean, seed = 0) {
@@ -172,12 +179,16 @@ function prop(ctx: CanvasRenderingContext2D, kind: PropKind, x: number, y: numbe
     case 'plant2':
       return plant(ctx, x, y, true, seed);
     case 'cabinet':
-      P(ctx, x, y, 26, 40, C.metal);
-      P(ctx, x, y, 26, 2, C.metalHi);
-      P(ctx, x, y, 2, 40, C.metalSh);
+      P(ctx, x + 1, y + 40, 26, 4, '#00000022'); // floor contact shadow
+      P(ctx, x, y, 26, 40, C.metal); // top/body
+      P(ctx, x, y, 26, 2, C.metalHi); // top highlight
+      P(ctx, x, y, 2, 40, C.metalHi); // left lit edge
+      P(ctx, x + 24, y, 2, 40, C.metalSh); // right shadow edge
+      P(ctx, x, y + 38, 26, 2, C.metalSh); // front edge
       for (let i = 0; i < 3; i++) {
-        P(ctx, x + 3, y + 4 + i * 12, 20, 10, C.metalSh);
-        P(ctx, x + 11, y + 8 + i * 12, 5, 2, C.metalHi);
+        P(ctx, x + 3, y + 4 + i * 12, 20, 9, C.metalSh);
+        P(ctx, x + 3, y + 4 + i * 12, 20, 1, '#465062');
+        P(ctx, x + 11, y + 7 + i * 12, 5, 2, C.metalHi);
       }
       return;
     case 'bookshelf': {
@@ -226,11 +237,16 @@ function prop(ctx: CanvasRenderingContext2D, kind: PropKind, x: number, y: numbe
       P(ctx, x + 5, y + 13, (w || 70) - 40, 2, C.green1);
       return;
     case 'sofa':
-      P(ctx, x, y, 70, 26, '#3a4250');
-      P(ctx, x, y, 70, 5, '#4c5466');
-      for (const dx of [3, 25, 47]) {
-        P(ctx, x + dx, y + 7, 20, 16, '#586278');
-        P(ctx, x + dx, y + 7, 20, 3, '#66718a');
+      P(ctx, x + 2, y + 26, 68, 4, '#00000022'); // contact shadow
+      P(ctx, x, y, 70, 26, '#3a4250'); // frame
+      P(ctx, x, y, 70, 4, '#525c70'); // backrest top highlight
+      P(ctx, x, y + 23, 70, 3, '#2a313d'); // front edge (thickness)
+      P(ctx, x, y + 4, 4, 22, '#2f3744'); // left arm side
+      P(ctx, x + 66, y + 4, 4, 22, '#2f3744'); // right arm side
+      for (const dx of [4, 26, 48]) {
+        P(ctx, x + dx, y + 7, 20, 15, '#586278'); // cushion top
+        P(ctx, x + dx, y + 7, 20, 3, '#66718a'); // cushion highlight
+        P(ctx, x + dx, y + 20, 20, 2, '#46506180'); // cushion front
       }
       return;
     case 'coffee':
@@ -252,14 +268,24 @@ function prop(ctx: CanvasRenderingContext2D, kind: PropKind, x: number, y: numbe
       P(ctx, x + 10, y, 9, 9, '#a99cff');
       P(ctx, x + 4, y + 10, 9, 9, '#9fbd9f');
       return;
-    case 'desk-small':
-      P(ctx, x, y, w || 60, h || 40, C.desk);
-      P(ctx, x, y, w || 60, 2, C.deskHi);
-      P(ctx, x, y + (h || 40) - 3, w || 60, 3, C.deskSh);
-      P(ctx, x + (w || 60) / 2 - 9, y + 6, 18, 12, C.bezel);
-      drawScreen(ctx, x + (w || 60) / 2 - 7, y + 8, 14, 8, tone === 'violet' ? 0 : 1);
-      P(ctx, x + (w || 60) / 2 - 9, y + 22, 18, 5, C.key);
+    case 'desk-small': {
+      const dw = w || 60;
+      const dh = h || 40;
+      P(ctx, x + 2, y + dh - 1, dw, 5, '#00000022'); // contact shadow
+      P(ctx, x, y, dw, dh - 6, C.desk); // top surface
+      P(ctx, x, y, dw, 2, C.deskHi); // back highlight
+      P(ctx, x, y + dh - 6, dw, 5, C.deskSh); // FRONT edge (thickness)
+      P(ctx, x, y + dh - 1, dw, 1, C.deskEdge);
+      P(ctx, x, y + 2, 2, dh - 8, '#9aa0a8'); // left side
+      P(ctx, x + dw - 2, y + 2, 2, dh - 8, C.deskSh); // right side
+      P(ctx, x + dw / 2 - 8, y + 12, 16, 2, '#00000022'); // monitor contact shadow
+      P(ctx, x + dw / 2 - 1, y + 11, 2, 2, C.bezel);
+      P(ctx, x + dw / 2 - 9, y + 4, 18, 9, C.bezel);
+      drawScreen(ctx, x + dw / 2 - 7, y + 5, 14, 7, tone === 'violet' ? 0 : 1);
+      P(ctx, x + dw / 2 - 9, y + 16, 18, 4, C.key); // keyboard
+      P(ctx, x + 4, y + 16, 8, 6, C.paper); // papers
       return;
+    }
     case 'rug': {
       const cols = tone === 'violet' ? ['#332c4a', '#4c4270', '#a99cff'] : tone === 'rose' ? ['#3a2c34', '#5a4350', '#d98aa5'] : ['#2b3142', '#3c455c', '#8c93d8'];
       const W = w || 120;
@@ -323,7 +349,7 @@ export function drawFloor(ctx: CanvasRenderingContext2D, map: FloorMap) {
   // desks + chairs
   for (const d of map.desks) {
     workstation(ctx, d.x, d.y, d.seed);
-    chair(ctx, d.x + 49, d.y + 66);
+    chair(ctx, d.x + 49, d.y + 60);
   }
   // props (sorted by y for overlap)
   for (const p of [...map.props].sort((a, b) => a.y - b.y)) prop(ctx, p.kind, p.x, p.y, p.w, p.h, p.tone, p.seed);

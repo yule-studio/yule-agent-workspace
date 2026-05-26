@@ -139,7 +139,7 @@ export function buildTeamMap(floor: Floor): FloorMap {
     const { x, y } = deskXY(i);
     const agent = agents[i] ?? null;
     desks.push({ x, y, seed: i * 5 + 1, agentId: agent ? agent.id : null });
-    if (agent) seats.set(agent.id, { x: x + 49, y: y + 80, agentId: agent.id });
+    if (agent) seats.set(agent.id, { x: x + 49, y: y + 74, agentId: agent.id });
   }
 
   // bottom three rooms (like the reference: manager office, lounge, private office)
