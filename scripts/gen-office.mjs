@@ -135,12 +135,17 @@ function monitor(t, x, y, scr) {
   for (let i = 0; i < 3; i++) t.r(x + 3, y + 3 + i * 2, [10, 7, 11][i], 1, s[1 + (i % 2)]);
 }
 function chairTD(t, faceUp) {
-  // top-down office chair; faceUp => backrest at bottom (person faces north)
+  // top-down office chair; faceUp => backrest at bottom (person faces north).
+  // base star + wheels / gas lift / seat / backrest / armrests, separated.
   t.r(8, 22, 16, 4, '#000000', 28); // floor contact shadow
-  for (const dx of [7, 12, 17]) t.r(dx, 19, 3, 2, PAL.metalSh); // base spokes
-  t.r(14, 14, 4, 5, PAL.metalSh); // gas lift
+  for (const dx of [6, 11, 16, 21]) {
+    t.r(dx, 19, 3, 2, PAL.metalSh); // base spoke
+    t.r(dx, 21, 2, 2, '#23272f'); // wheel
+  }
+  t.r(14, 14, 4, 6, PAL.metalSh); // gas lift
   t.r(8, 7, 16, 11, PAL.chairSeat); // seat
-  t.r(8, 7, 16, 2, PAL.chairHi);
+  t.r(8, 7, 16, 2, PAL.chairHi); // seat highlight
+  t.r(8, 16, 16, 2, PAL.chair); // seat front edge
   const by = faceUp ? 16 : 3; // backrest position
   t.r(9, by, 14, 5, PAL.chair);
   t.r(9, by, 14, 2, PAL.chairHi);
@@ -188,9 +193,9 @@ const TILES = [
   ['monitor_a', (t) => monitor(t, 8, 4, 0)],
   ['monitor_b', (t) => monitor(t, 8, 4, 1)],
   ['monitor_c', (t) => monitor(t, 8, 4, 2)],
-  ['keyboard', (t) => { t.r(7, 9, 18, 7, PAL.key); t.r(7, 9, 18, 1, PAL.keyDk); for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) t.r(9 + c * 3, 11 + r * 2, 2, 1, PAL.keyDk); t.r(26, 11, 4, 4, PAL.key); }],
-  ['laptop', (t) => { t.r(7, 6, 18, 11, PAL.bezel); t.r(9, 8, 14, 7, SCREENS[1][1]); t.r(6, 17, 20, 5, PAL.keyDk); }],
-  ['deskprops', (t) => { t.r(5, 8, 10, 11, PAL.paper); for (let i = 0; i < 3; i++) t.r(7, 10 + i * 3, [7, 5, 8][i], 1, PAL.paperLn); t.r(20, 9, 7, 9, PAL.lav); t.r(20, 9, 7, 2, '#ffffff', 60); }],
+  ['keyboard', (t) => { t.r(7, 16, 18, 2, '#000000', 22); t.r(26, 15, 5, 2, '#000000', 20); t.r(7, 9, 18, 7, PAL.key); t.r(7, 9, 18, 1, PAL.keyDk); for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) t.r(9 + c * 3, 11 + r * 2, 2, 1, PAL.keyDk); t.r(26, 11, 4, 4, PAL.key); }],
+  ['laptop', (t) => { t.r(6, 21, 20, 2, '#000000', 22); t.r(7, 6, 18, 11, PAL.bezel); t.r(9, 8, 14, 7, SCREENS[1][1]); t.r(6, 17, 20, 5, PAL.keyDk); }],
+  ['deskprops', (t) => { t.r(5, 18, 11, 2, '#000000', 20); t.r(5, 8, 10, 11, PAL.paper); for (let i = 0; i < 3; i++) t.r(7, 10 + i * 3, [7, 5, 8][i], 1, PAL.paperLn); t.r(20, 17, 8, 2, '#000000', 22); t.r(20, 9, 7, 9, PAL.lav); t.r(20, 9, 7, 2, '#ffffff', 60); }],
   // chairs
   ['chair_up', (t) => chairTD(t, true)],
   ['chair_down', (t) => chairTD(t, false)],
