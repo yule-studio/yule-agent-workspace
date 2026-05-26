@@ -443,6 +443,29 @@
   .inspector { display: none; }
 }
 
+/* ════════════════ Pixel floor canvas ════════════════ */
+.pixel-floor {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 56px 16px 16px;
+}
+.pf-stage {
+  position: relative;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+}
+.pf-stage canvas {
+  display: block;
+  image-rendering: pixelated;
+  border-radius: 2px;
+}
+.pf-stage .agent {
+  position: absolute;
+}
+
 /* ════════════════ Building scene (living pixel city) ════════════════ */
 .scene {
   position: absolute;
