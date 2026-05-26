@@ -1,35 +1,36 @@
 :root {
-  /* Cool, modern "control room" shell — deep graphite/slate, cyan+teal+violet
-     accents. No warm wood / amber / brown anywhere. */
-  --bg: #0d1117;
-  --bg-2: #0b0f15;
-  --panel: #151b23;
-  --panel-2: #1f2937;
-  --surface: #17202b;
-  --border: #2f3a48;
-  --border-2: #3a4656;
-  --text: #e5edf5;
-  --muted: #9fb0c3;
-  --accent: #38bdf8; /* cyan — primary */
-  --accent-2: #2dd4bf; /* teal — links */
-  --violet: #a78bfa;
-  --attention: #fb7185; /* coral — needs you */
+  /* Muted modern pixel-workspace shell — graphite/charcoal (slightly warm-
+     neutral, not blue-black) with sage-teal primary and distributed violet /
+     coral / sage accents. Soft fills, not neon glow. */
+  --bg: #15181d;
+  --bg-2: #111419;
+  --panel: #1c2127;
+  --panel-2: #252b33;
+  --surface: #20262d;
+  --border: #2e353d;
+  --border-2: #3a424c;
+  --text: #e7ebe6;
+  --muted: #98a39c;
+  --accent: #6aa392; /* sage-teal — primary (muted) */
+  --accent-2: #5f9e8f; /* teal */
+  --violet: #8b80c9;
+  --attention: #e07a6e; /* coral — needs you */
   --radius: 12px;
 
-  /* state palette — cool, no yellow */
-  --s-draft: #6b7a8d;
-  --s-queued: #7c8aa0;
-  --s-planning: #a78bfa;
-  --s-awaiting_approval: #fb7185;
-  --s-approved: #34d399;
-  --s-executing: #38bdf8;
-  --s-reviewing: #818cf8;
-  --s-blocked: #f43f5e;
-  --s-ready_to_merge: #2dd4bf;
-  --s-deploying: #22d3ee;
-  --s-done: #34d399;
-  --s-failed: #ef4444;
-  --s-abandoned: #4b5563;
+  /* state palette — muted, distributed (no neon) */
+  --s-draft: #6f7a72;
+  --s-queued: #7c8a86;
+  --s-planning: #8b80c9;
+  --s-awaiting_approval: #e07a6e;
+  --s-approved: #7bb38f;
+  --s-executing: #5b9bb5;
+  --s-reviewing: #7d86c4;
+  --s-blocked: #d2665d;
+  --s-ready_to_merge: #5fa394;
+  --s-deploying: #5fa3a3;
+  --s-done: #7bb38f;
+  --s-failed: #cf5a52;
+  --s-abandoned: #4a534d;
 }
 
 * {
@@ -103,7 +104,7 @@ a:hover {
   text-decoration: none;
 }
 .nav a.active {
-  background: rgba(56, 189, 248, 0.14);
+  background: rgba(106, 163, 146, 0.16);
   color: var(--accent);
   box-shadow: inset 2px 0 0 var(--accent);
 }
