@@ -221,6 +221,14 @@ npm run dev:bot
 
 ---
 
-## 라이선스
+## 라이선스 / 에셋
 
 MIT — [LICENSE](LICENSE) 참고.
+
+`/office` 픽셀 오피스의 타일맵 에셋(`apps/web/public/vendor/office/tileset.png`,
+`office.tmj`)은 `scripts/gen-office.mjs` 가 **직접 생성한 자체 픽셀 아트** 다 —
+서드파티 에셋 0. Tiled 레이어 구조(`floor/walls/furniture/objects/overhead` +
+`seats/pois/spawns/collisions` 오브젝트 레이어)는 MIT 코드인
+[geezerrrr/agent-town](https://github.com/geezerrrr/agent-town) 의 **구조만**
+참고했고, 해당 프로젝트의 상용(LimeZu) 아트는 재배포 불가라 **복사하지 않았다**.
+자세한 내역은 [vendor/office/NOTICE.md](apps/web/public/vendor/office/NOTICE.md).
