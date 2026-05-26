@@ -27,6 +27,7 @@ export function OfficeMap({
   const [floorId, setFloorId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
   const [hoverFloor, setHoverFloor] = useState<Floor | null>(null);
+  const [inspect, setInspect] = useState(false); // inspector closed by default
 
   useEffect(() => {
     if (building.floors.length === 0) return;
@@ -62,28 +63,36 @@ export function OfficeMap({
           </button>
         </div>
         {view === 'floor' && (
-          <div className="floor-tabs">
+          <select className="floor-select" value={floorId ?? ''} onChange={(e) => setFloorId(e.target.value)} aria-label="Floor">
             {building.floors.map((f) => (
-              <button
-                key={f.id}
-                className={f.id === floorId ? 'on' : ''}
-                onClick={() => setFloorId(f.id)}
-                style={f.id === floorId ? { borderColor: f.accent, color: f.accent } : undefined}
-              >
+              <option key={f.id} value={f.id}>
                 {f.name}
-                {f.activeCount > 0 && <i className="ft-count">{f.activeCount}</i>}
-              </button>
+                {f.activeCount > 0 ? ` · ${f.activeCount} active` : ''}
+              </option>
             ))}
-          </div>
+          </select>
         )}
-        <div className={`kst-chip phase-${kst.phase}`}>
+        <div className={`kst-chip phase-${kst.phase}`} title={`KST ${kst.time} · ${kst.shift}`}>
           <span className="kst-orb" />
-          KST {kst.time} · {kst.shift}
+          {kst.time}
         </div>
-        <label className={`follow ${follow ? 'on' : ''}`}>
-          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
-          Follow active
-        </label>
+        <button
+          className={`hud-icon ${follow ? 'on' : ''}`}
+          onClick={() => setFollow((f) => !f)}
+          title={follow ? 'Following active floor' : 'Follow active floor'}
+          aria-pressed={follow}
+        >
+          <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor">
+            <circle cx="8" cy="8" r="2.4" />
+            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          </svg>
+        </button>
+        <button className={`hud-icon ${inspect ? 'on' : ''}`} onClick={() => setInspect((o) => !o)} title="Details" aria-pressed={inspect}>
+          <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor">
+            <circle cx="8" cy="4" r="1.3" />
+            <rect x="6.8" y="6.6" width="2.4" height="6.4" rx="1" />
+          </svg>
+        </button>
       </div>
 
       <div className="hq-stage">
@@ -100,7 +109,7 @@ export function OfficeMap({
         ) : (
           <FloorView floor={floor} meetings={meetings} onSelect={onSelect} />
         )}
-        <Inspector building={building} floor={inspectFloor} onEnter={enter} />
+        <Inspector building={building} floor={inspectFloor} onEnter={enter} open={inspect} onClose={() => setInspect(false)} />
       </div>
     </div>
   );
