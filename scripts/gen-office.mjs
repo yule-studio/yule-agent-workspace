@@ -18,7 +18,9 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
-const TS = 32; // tile size (px)
+const TS = 64; // output tile size (px) — higher res so sprites carry more detail
+const DS = 32; // design grid unit; simple tiles are authored in DS and scaled to TS
+const S = TS / DS; // scale factor (2)
 const ATLAS_COLS = 12;
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../apps/web/public/vendor/office');
 
@@ -79,13 +81,18 @@ class Atlas {
 }
 
 // A per-tile drawing context (origin at the tile's top-left within the atlas).
+// r() draws in the 32-unit DESIGN space (scaled ×S to the output cell) — used by
+// simple tiles. raw() draws in OUTPUT px (0..TS) — used by detailed workstation
+// sprites that author at full resolution.
 class Tile {
   constructor(atlas, ox, oy) { this.a = atlas; this.ox = ox; this.oy = oy; }
-  r(x, y, w, h, col, alpha = 255) {
+  raw(x, y, w, h, col, alpha = 255) {
     const [R, G, B] = hex(col);
+    x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
     for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) this.a.px(this.ox + x + xx, this.oy + y + yy, R, G, B, alpha);
   }
-  fill(col) { this.r(0, 0, TS, TS, col); }
+  r(x, y, w, h, col, alpha = 255) { this.raw(x * S, y * S, w * S, h * S, col, alpha); }
+  fill(col) { this.raw(0, 0, TS, TS, col); }
 }
 
 // shared sub-draws (top-down) ------------------------------------------------
@@ -99,63 +106,60 @@ function deskTop(t, x, y, w, h) {
 // agent sits below). Built with real cubicle structure: back partition + posts,
 // top surface, distinct front face, side divider panels, legs, contact shadow.
 // part = which atlas column (l/m/r) → side detail / seam. 4+ shade levels.
+// Workstation desk at FULL output resolution (64px cell). x,w are OUTPUT px.
+// Front face at bottom (agent sits below); V-flip in the map for the up-row.
 function wsDesk(t, x, w, part, panel = PAL.partPanel, panelHi = PAL.partPanelHi) {
-  // floor contact shadow (dark desaturated blue-gray) under the desk front
-  t.r(x, 30, w, 2, '#1b2230', 40);
-  // front legs (graphite) — centre on every tile + corner legs on the ends
-  t.r(x + Math.round(w / 2) - 1, 24, 3, 8, PAL.leg);
-  if (part === 'l') t.r(x + 2, 24, 3, 8, PAL.leg);
-  if (part === 'r') t.r(x + w - 5, 24, 3, 8, PAL.leg);
-  // back partition: FABRIC panel (blue-gray) + top rail highlight + posts + texture
-  t.r(x, 0, w, 5, panel);
-  t.r(x, 0, w, 2, panelHi); // top rail
-  for (let fx = 1; fx < w; fx += 3) t.r(x + fx, 2, 1, 2, PAL.partPanelSh); // fabric weave
-  t.r(x, 0, 2, 8, PAL.partPost); // dark slate post at tile-left junction
-  if (part === 'r') t.r(x + w - 2, 0, 2, 8, PAL.partPost);
-  t.r(x, 5, w, 1, '#1b2230', 30); // partition cast shadow onto desk
-  // desk LAMINATE top (warm-neutral) + highlight + grain — distinct from partition
-  t.r(x, 6, w, 18, PAL.deskTop);
-  t.r(x, 6, w, 2, PAL.deskTopHi);
-  t.r(x + 2, 10, w - 4, 1, PAL.deskTopGrain);
-  t.r(x + 2, 18, w - 4, 1, PAL.deskTopGrain);
-  // side divider panels (fabric, cubicle sides) + lit/shadow edges
-  if (part === 'l') {
-    t.r(x, 6, 3, 23, panel);
-    t.r(x, 6, 3, 2, panelHi);
-    t.r(x + 3, 7, 1, 15, PAL.deskSide);
-  }
-  if (part === 'r') {
-    t.r(x + w - 3, 6, 3, 23, PAL.partPanelSh);
-    t.r(x + w - 4, 7, 1, 15, PAL.deskSide);
-  }
-  if (part === 'm') t.r(x + w / 2, 7, 1, 15, PAL.deskTopGrain); // per-seat seam
-  // front face (dark cool gray) + dark lip — clearly darker than the top
-  t.r(x, 24, w, 5, PAL.deskFront);
-  t.r(x, 29, w, 1, PAL.deskLip);
+  const POST = PAL.partPost, LEG = PAL.leg, mid = Math.round(w / 2);
+  t.raw(x + 1, 60, w - 1, 4, '#1b2230', 42); // floor contact shadow
+  // legs (graphite) — centre on every tile + corner legs on the ends
+  t.raw(x + mid - 2, 48, 4, 16, LEG); t.raw(x + mid - 2, 48, 1, 16, '#454b54');
+  if (part === 'l') t.raw(x + 5, 48, 4, 16, LEG);
+  if (part === 'r') t.raw(x + w - 9, 48, 4, 16, LEG);
+  // back partition: FABRIC panel + top rail + weave texture + dark slate posts
+  t.raw(x, 0, w, 11, panel);
+  t.raw(x, 0, w, 4, panelHi);
+  t.raw(x, 9, w, 2, PAL.partPanelSh);
+  for (let fx = 2; fx < w; fx += 4) t.raw(x + fx, 4, 1, 5, PAL.partPanelSh); // weave
+  t.raw(x, 0, 4, 15, POST);
+  if (part === 'r') t.raw(x + w - 4, 0, 4, 15, POST);
+  t.raw(x, 11, w, 2, '#1b2230', 30); // partition cast shadow onto desk
+  // desk LAMINATE top + highlight + grain (warm-neutral, distinct from partition)
+  t.raw(x, 13, w, 35, PAL.deskTop);
+  t.raw(x, 13, w, 4, PAL.deskTopHi);
+  for (const gy of [21, 29, 37, 44]) t.raw(x + 4, gy, w - 8, 1, PAL.deskTopGrain);
+  // side divider panels (fabric) + lit/shadow edges
+  if (part === 'l') { t.raw(x, 13, 5, 47, panel); t.raw(x, 13, 5, 4, panelHi); t.raw(x + 5, 16, 1, 30, PAL.deskSide); }
+  if (part === 'r') { t.raw(x + w - 5, 13, 5, 47, PAL.partPanelSh); t.raw(x + w - 6, 16, 1, 30, PAL.deskSide); }
+  if (part === 'm') t.raw(x + mid, 15, 1, 30, PAL.deskTopGrain); // per-seat seam
+  // front face (dark cool) + lip — clearly darker than the top
+  t.raw(x, 48, w, 10, PAL.deskFront);
+  t.raw(x, 48, w, 1, '#6b727c');
+  t.raw(x, 58, w, 2, PAL.deskLip);
 }
-function monitor(t, x, y, scr) {
+// monitor at full 64px res: arm/stand/base + bezel + screen UI + highlight.
+function monitor(t, cx, cy, scr) {
   const s = SCREENS[scr % SCREENS.length];
-  t.r(x + 4, y + 13, 8, 2, '#000000', 38); // contact shadow
-  t.r(x + 6, y + 11, 4, 3, PAL.bezel); // stand neck
-  t.r(x + 3, y + 13, 8, 2, PAL.bezel); // base
-  t.r(x + 1, y, 14, 12, PAL.bezel);
-  t.r(x + 1, y, 14, 2, PAL.bezelHi);
-  screenUI(t, x + 2, y + 2, 12, 8, s, scr % 4);
-  t.r(x + 2, y + 2, 12, 1, '#ffffff', 16); // screen highlight
+  t.raw(cx + 6, cy + 30, 22, 3, '#000000', 38); // contact shadow
+  t.raw(cx + 8, cy + 27, 18, 3, PAL.bezel); // base
+  t.raw(cx + 15, cy + 22, 6, 6, PAL.bezel); // stand neck
+  t.raw(cx + 2, cy, 30, 24, PAL.bezel); // bezel
+  t.raw(cx + 2, cy, 30, 3, PAL.bezelHi);
+  screenUI(t, cx + 4, cy + 3, 26, 18, s, scr % 4);
+  t.raw(cx + 4, cy + 3, 26, 2, '#ffffff', 16); // highlight
 }
-// draw a varied screen UI inside a region: code / terminal / dashboard / chat
+// varied screen UI inside a region (output px): code / terminal / dashboard / chat
 function screenUI(t, x, y, w, h, s, ui) {
-  t.r(x, y, w, h, s[0]);
+  t.raw(x, y, w, h, s[0]);
   if (ui === 0) {
-    const lens = [w - 2, w - 5, w - 3, w - 7, w - 4];
-    for (let i = 0; i < Math.min(4, (h - 1) >> 1); i++) t.r(x + 1, y + 1 + i * 2, lens[i % 5], 1, s[1 + (i % 2)]);
+    const lens = [w - 4, w - 10, w - 6, w - 14, w - 8];
+    for (let i = 0; i < Math.min(5, (h - 2) / 3 | 0); i++) t.raw(x + 2, y + 3 + i * 3, lens[i % 5], 2, s[1 + (i % 2)]);
   } else if (ui === 1) {
-    for (let i = 0; i < 3; i++) t.r(x + 1, y + 1 + i * 2, [w - 3, w - 6, 4][i], 1, s[2]);
-    t.r(x + 1, y + h - 2, 2, 1, s[1]); // cursor
+    for (let i = 0; i < 4 && 3 + i * 3 < h; i++) t.raw(x + 2, y + 3 + i * 3, [w - 6, w - 12, 8, w - 9][i], 2, s[2]);
+    t.raw(x + 2, y + h - 4, 4, 3, s[1]); // cursor block
   } else if (ui === 2) {
-    for (let i = 0; i < 4; i++) t.r(x + 1 + (i % 2) * ((w - 2) / 2 + 1), y + 1 + ((i / 2) | 0) * ((h - 2) / 2 + 1), ((w - 4) / 2) | 0, ((h - 4) / 2) | 0, s[1 + (i % 2)]);
+    for (let i = 0; i < 4; i++) t.raw(x + 2 + (i % 2) * (w / 2), y + 2 + ((i / 2) | 0) * (h / 2), (w / 2 - 4) | 0, (h / 2 - 4) | 0, s[1 + (i % 2)]);
   } else {
-    for (let i = 0; i < 3; i++) { const xx = i % 2 ? x + w - 6 : x + 1; t.r(xx, y + 1 + i * 2, 5, 1, s[1 + (i % 2)]); }
+    for (let i = 0; i < 4; i++) { const xx = i % 2 ? x + w - 11 : x + 2; t.raw(xx, y + 2 + i * 4, 9, 3, s[1 + (i % 2)]); }
   }
 }
 // top-down office chair. style: task | exec | mesh | visitor. faceUp => backrest
@@ -207,42 +211,42 @@ const TILES = [
   ['floor_tile_b', (t) => floorTile(t, PAL.tileB, PAL.tileSeam)],
   ['floor_corridor', (t) => floorTile(t, PAL.corridor, PAL.corridorSeam)],
   // walls (top-down) ; flips handle orientation
-  ['wall', (t) => { t.fill(PAL.wall); t.r(0, 0, TS, 3, PAL.wallHi); t.r(0, TS - 3, TS, 3, PAL.wallSh); t.r(0, 0, 3, TS, PAL.wallHi); t.r(TS - 3, 0, 3, TS, PAL.wallSh); }],
-  ['wall_face', (t) => { t.fill(PAL.wallFace); t.r(0, 0, TS, 4, PAL.wall); t.r(0, 0, TS, 2, PAL.wallHi); t.r(0, TS - 2, TS, 2, PAL.wallFaceSh); for (let x = 2; x < TS; x += 8) t.r(x, 5, 1, TS - 7, PAL.wallFaceSh); }],
-  ['wall_inner', (t) => { t.fill('#8a8f98'); t.r(0, 0, TS, 3, '#a8adb4'); t.r(0, TS - 3, TS, 3, '#5f656e'); t.r(0, 0, 3, TS, '#9aa0a8'); t.r(TS - 3, 0, 3, TS, '#646a73'); }],
+  ['wall', (t) => { t.fill(PAL.wall); t.r(0, 0, DS, 3, PAL.wallHi); t.r(0, DS - 3, DS, 3, PAL.wallSh); t.r(0, 0, 3, DS, PAL.wallHi); t.r(DS - 3, 0, 3, DS, PAL.wallSh); }],
+  ['wall_face', (t) => { t.fill(PAL.wallFace); t.r(0, 0, DS, 4, PAL.wall); t.r(0, 0, DS, 2, PAL.wallHi); t.r(0, DS - 2, DS, 2, PAL.wallFaceSh); for (let x = 2; x < DS; x += 8) t.r(x, 5, 1, DS - 7, PAL.wallFaceSh); }],
+  ['wall_inner', (t) => { t.fill('#8a8f98'); t.r(0, 0, DS, 3, '#a8adb4'); t.r(0, DS - 3, DS, 3, '#5f656e'); t.r(0, 0, 3, DS, '#9aa0a8'); t.r(DS - 3, 0, 3, DS, '#646a73'); }],
   // partitions (cubicle dividers)
-  ['part_h', (t) => { t.r(0, 11, TS, 8, PAL.metal); t.r(0, 11, TS, 2, PAL.metalHi); t.r(0, 17, TS, 2, PAL.metalSh); t.r(0, 19, TS, 2, '#000000', 26); }],
-  ['part_v', (t) => { t.r(12, 0, 8, TS, PAL.metal); t.r(12, 0, 2, TS, PAL.metalHi); t.r(18, 0, 2, TS, PAL.metalSh); t.r(20, 0, 2, TS, '#000000', 26); }],
+  ['part_h', (t) => { t.r(0, 11, DS, 8, PAL.metal); t.r(0, 11, DS, 2, PAL.metalHi); t.r(0, 17, DS, 2, PAL.metalSh); t.r(0, 19, DS, 2, '#000000', 26); }],
+  ['part_v', (t) => { t.r(12, 0, 8, DS, PAL.metal); t.r(12, 0, 2, DS, PAL.metalHi); t.r(18, 0, 2, DS, PAL.metalSh); t.r(20, 0, 2, DS, '#000000', 26); }],
   // desks (3-wide cluster; flips reuse for the opposite side)
   // workstation desks: back partition panel (top) + surface + thick front edge
   // (bottom). V-flip in the map for the opposite-facing row → shared partition.
-  ['desk_l', (t) => wsDesk(t, 6, 26, 'l')],
+  ['desk_l', (t) => wsDesk(t, 12, 52, 'l')],
   ['desk_m', (t) => wsDesk(t, 0, TS, 'm')],
-  ['desk_r', (t) => wsDesk(t, 0, 26, 'r')],
+  ['desk_r', (t) => wsDesk(t, 0, 52, 'r')],
   ['desk_single', (t) => { deskTop(t, 3, 6, 26, 20); }],
   // desk variant 2 — deeper slate-blue partition (seeded per pod for variety)
-  ['desk2_l', (t) => wsDesk(t, 6, 26, 'l', '#566273', '#6a7488')],
+  ['desk2_l', (t) => wsDesk(t, 12, 52, 'l', '#566273', '#6a7488')],
   ['desk2_m', (t) => wsDesk(t, 0, TS, 'm', '#566273', '#6a7488')],
-  ['desk2_r', (t) => wsDesk(t, 0, 26, 'r', '#566273', '#6a7488')],
-  // desk gear (objects layer, transparent, overlaps desk) — monitor variants
-  ['monitor_a', (t) => monitor(t, 8, 4, 0)],
-  ['monitor_b', (t) => monitor(t, 8, 4, 1)],
-  ['monitor_c', (t) => monitor(t, 8, 4, 2)],
-  ['monitor_d', (t) => monitor(t, 8, 4, 5)],
-  ['monitor_dual', (t) => { t.r(2, 17, 28, 2, '#000000', 32); t.r(13, 14, 6, 3, PAL.bezel); t.r(8, 17, 16, 2, PAL.bezel); t.r(1, 2, 14, 12, PAL.bezel); t.r(1, 2, 14, 2, PAL.bezelHi); screenUI(t, 2, 4, 12, 8, SCREENS[0], 0); t.r(17, 2, 14, 12, PAL.bezel); t.r(17, 2, 14, 2, PAL.bezelHi); screenUI(t, 18, 4, 12, 8, SCREENS[3], 2); }],
-  ['monitor_vert', (t) => { t.r(10, 22, 12, 2, '#000000', 32); t.r(14, 19, 4, 3, PAL.bezel); t.r(11, 22, 10, 2, PAL.bezel); t.r(9, 1, 14, 19, PAL.bezel); t.r(9, 1, 14, 2, PAL.bezelHi); screenUI(t, 10, 3, 12, 15, SCREENS[1], 1); }],
-  ['monitor_large', (t) => { t.r(2, 16, 28, 2, '#000000', 34); t.r(14, 13, 4, 3, PAL.bezel); t.r(8, 16, 16, 2, PAL.bezel); t.r(1, 1, 30, 13, PAL.bezel); t.r(1, 1, 30, 2, PAL.bezelHi); screenUI(t, 3, 3, 26, 9, SCREENS[3], 2); }],
-  ['monitor_combo', (t) => { t.r(2, 14, 13, 12, PAL.bezel); t.r(2, 14, 13, 2, PAL.bezelHi); t.r(2, 14, 13, 1, '#000000', 0); screenUI(t, 3, 15, 11, 8, SCREENS[0], 0); t.r(1, 24, 15, 4, PAL.keyDk); t.r(17, 4, 14, 11, PAL.bezel); t.r(17, 4, 14, 2, PAL.bezelHi); screenUI(t, 18, 6, 12, 7, SCREENS[2], 3); }],
-  ['tablet', (t) => { t.r(9, 20, 14, 2, '#000000', 28); t.r(9, 5, 14, 16, PAL.bezel); t.r(9, 5, 14, 2, PAL.bezelHi); screenUI(t, 10, 7, 12, 11, SCREENS[2], 3); }],
-  ['keyboard', (t) => { t.r(7, 16, 18, 2, '#000000', 22); t.r(26, 15, 5, 2, '#000000', 20); t.r(7, 9, 18, 7, PAL.key); t.r(7, 9, 18, 1, PAL.keyDk); for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) t.r(9 + c * 3, 11 + r * 2, 2, 1, PAL.keyDk); t.r(26, 11, 4, 4, PAL.key); }],
-  ['laptop', (t) => { t.r(6, 21, 20, 2, '#000000', 22); t.r(7, 6, 18, 11, PAL.bezel); t.r(9, 8, 14, 7, SCREENS[1][1]); t.r(6, 17, 20, 5, PAL.keyDk); }],
-  ['deskprops', (t) => { t.r(5, 18, 11, 2, '#000000', 20); t.r(5, 8, 10, 11, PAL.paper); for (let i = 0; i < 3; i++) t.r(7, 10 + i * 3, [7, 5, 8][i], 1, PAL.paperLn); t.r(20, 17, 8, 2, '#000000', 22); t.r(20, 9, 7, 9, PAL.lav); t.r(20, 9, 7, 2, '#ffffff', 60); }],
+  ['desk2_r', (t) => wsDesk(t, 0, 52, 'r', '#566273', '#6a7488')],
+  // desk gear (objects layer; full 64px raw detail) — monitor variants
+  ['monitor_a', (t) => monitor(t, 16, 8, 0)],
+  ['monitor_b', (t) => monitor(t, 16, 8, 1)],
+  ['monitor_c', (t) => monitor(t, 16, 8, 2)],
+  ['monitor_d', (t) => monitor(t, 16, 8, 5)],
+  ['monitor_dual', (t) => { t.raw(6, 34, 52, 3, '#000000', 32); t.raw(26, 30, 12, 4, PAL.bezel); t.raw(18, 34, 28, 3, PAL.bezel); t.raw(2, 4, 28, 24, PAL.bezel); t.raw(2, 4, 28, 3, PAL.bezelHi); screenUI(t, 4, 7, 24, 18, SCREENS[0], 0); t.raw(34, 4, 28, 24, PAL.bezel); t.raw(34, 4, 28, 3, PAL.bezelHi); screenUI(t, 36, 7, 24, 18, SCREENS[3], 2); }],
+  ['monitor_vert', (t) => { t.raw(20, 44, 24, 3, '#000000', 32); t.raw(28, 38, 8, 6, PAL.bezel); t.raw(22, 44, 20, 3, PAL.bezel); t.raw(18, 2, 28, 38, PAL.bezel); t.raw(18, 2, 28, 3, PAL.bezelHi); screenUI(t, 20, 5, 24, 32, SCREENS[1], 1); }],
+  ['monitor_large', (t) => { t.raw(4, 32, 56, 3, '#000000', 34); t.raw(28, 28, 8, 5, PAL.bezel); t.raw(16, 32, 32, 3, PAL.bezel); t.raw(2, 2, 60, 26, PAL.bezel); t.raw(2, 2, 60, 3, PAL.bezelHi); screenUI(t, 5, 5, 54, 20, SCREENS[3], 2); }],
+  ['monitor_combo', (t) => { t.raw(2, 4, 30, 22, PAL.bezel); t.raw(2, 4, 30, 3, PAL.bezelHi); screenUI(t, 4, 7, 26, 16, SCREENS[0], 0); t.raw(34, 40, 28, 4, PAL.keyDk); t.raw(36, 18, 24, 20, PAL.bezel); t.raw(36, 18, 24, 3, PAL.bezelHi); screenUI(t, 38, 21, 20, 14, SCREENS[2], 3); }],
+  ['tablet', (t) => { t.raw(18, 42, 28, 3, '#000000', 28); t.raw(18, 8, 28, 34, PAL.bezel); t.raw(18, 8, 28, 3, PAL.bezelHi); screenUI(t, 20, 11, 24, 28, SCREENS[2], 3); }],
+  ['keyboard', (t) => { t.raw(14, 40, 42, 4, '#000000', 22); t.raw(12, 18, 40, 18, PAL.key); t.raw(12, 18, 40, 3, PAL.keyDk); for (let r = 0; r < 3; r++) for (let c = 0; c < 10; c++) t.raw(15 + c * 4, 23 + r * 4, 3, 3, PAL.keyDk); t.raw(54, 26, 8, 10, PAL.key); t.raw(54, 26, 8, 2, PAL.keyDk); }],
+  ['laptop', (t) => { t.raw(12, 46, 42, 4, '#000000', 22); t.raw(14, 12, 36, 24, PAL.bezel); t.raw(14, 12, 36, 3, PAL.bezelHi); screenUI(t, 16, 15, 32, 18, SCREENS[1], 1); t.raw(12, 36, 40, 12, PAL.keyDk); for (let c = 0; c < 11; c++) t.raw(16 + c * 3, 40, 2, 5, '#7a818c'); }],
+  ['deskprops', (t) => { t.raw(8, 38, 26, 4, '#000000', 20); t.raw(8, 12, 24, 26, PAL.paper); for (let i = 0; i < 5; i++) t.raw(12, 17 + i * 4, [16, 12, 18, 10, 14][i], 2, PAL.paperLn); t.raw(42, 34, 16, 4, '#000000', 22); t.raw(42, 14, 14, 20, PAL.lav); t.raw(42, 14, 14, 4, '#ffffff', 55); t.raw(42, 30, 14, 2, PAL.lav2); }],
   // desk clutter combos (overhead layer) — seeded per desk, 2-3 small items each
-  ['clutter_a', (t) => { t.r(6, 9, 7, 8, PAL.lav); t.r(6, 9, 7, 2, '#ffffff', 55); t.r(18, 8, 5, 5, PAL.coral); t.r(24, 12, 5, 6, '#cfd3da'); }], // mug + sticky + paper
-  ['clutter_b', (t) => { t.r(5, 8, 9, 10, '#2c323b'); t.r(7, 10, 5, 1, PAL.sage); t.r(7, 12, 4, 1, PAL.sage); t.r(20, 10, 6, 8, PAL.paper); t.r(21, 12, 4, 1, PAL.paperLn); }], // notebook + papers
-  ['clutter_c', (t) => { t.r(7, 7, 6, 10, PAL.ink); t.r(8, 8, 4, 2, PAL.lav2); t.r(20, 9, 4, 9, '#3a4250'); for (let i = 0; i < 3; i++) t.r(21, 10 + i * 2, 2, 1, PAL.sage); }], // phone + pen cup
-  ['clutter_d', (t) => { t.r(6, 8, 12, 5, PAL.ink); t.r(6, 8, 12, 2, '#3a414c'); t.r(8, 6, 8, 2, PAL.ink); t.r(22, 11, 6, 7, PAL.box); t.r(22, 11, 6, 2, PAL.boxHi); }], // headphones + box
-  ['clutter_e', (t) => { t.r(6, 16, 12, 2, '#000000', 18); t.r(8, 6, 9, 11, PAL.sage); t.r(9, 14, 7, 5, PAL.pot); t.r(22, 10, 6, 7, PAL.rose); t.r(22, 10, 6, 2, '#ffffff', 50); }], // small plant + cup
+  ['clutter_a', (t) => { t.raw(10, 36, 16, 4, '#000000', 18); t.raw(10, 12, 16, 18, PAL.lav); t.raw(10, 12, 16, 4, '#ffffff', 55); t.raw(36, 10, 12, 12, PAL.coral); t.raw(36, 10, 12, 3, '#ffffff', 40); t.raw(48, 26, 12, 14, '#cfd3da'); }], // mug + sticky + paper
+  ['clutter_b', (t) => { t.raw(8, 38, 20, 4, '#000000', 18); t.raw(8, 14, 20, 22, '#2c323b'); for (let i = 0; i < 4; i++) t.raw(12, 18 + i * 4, 12, 2, PAL.sage); t.raw(40, 18, 18, 18, PAL.paper); t.raw(43, 22, 12, 2, PAL.paperLn); t.raw(43, 26, 9, 2, PAL.paperLn); }], // notebook + papers
+  ['clutter_c', (t) => { t.raw(12, 36, 14, 4, '#000000', 18); t.raw(14, 12, 12, 22, PAL.ink); t.raw(16, 14, 8, 4, PAL.lav2); t.raw(40, 16, 10, 20, '#3a4250'); for (let i = 0; i < 4; i++) t.raw(42, 18 + i * 4, 3, 2, PAL.sage); }], // phone + pen cup
+  ['clutter_d', (t) => { t.raw(10, 16, 26, 10, PAL.ink); t.raw(10, 16, 26, 3, '#3a414c'); t.raw(14, 12, 18, 4, PAL.ink); t.raw(44, 22, 14, 16, PAL.box); t.raw(44, 22, 14, 3, PAL.boxHi); }], // headphones + box
+  ['clutter_e', (t) => { t.raw(10, 32, 22, 4, '#000000', 16); t.raw(14, 10, 18, 22, PAL.sage); t.raw(16, 28, 14, 10, PAL.pot); t.raw(44, 20, 14, 16, PAL.rose); t.raw(44, 20, 14, 4, '#ffffff', 45); }], // plant + cup
   // chairs (task default) + variants
   ['chair_up', (t) => chairTD(t, true)],
   ['chair_down', (t) => chairTD(t, false)],
@@ -253,15 +257,15 @@ const TILES = [
   ...rugSlices('rug_l', '#332c4a', '#4c4270', PAL.lav),
   ...rugSlices('rug_r', '#3a2c34', '#5a4350', PAL.rose),
   // furniture (objects)
-  ['bookshelf_t', (t) => { t.r(2, 0, 28, TS, '#222831'); t.r(3, 1, 26, TS - 1, '#2c323b'); shelfRow(t, 4); shelfRow(t, 17); }],
-  ['bookshelf_b', (t) => { t.r(2, 0, 28, TS - 2, '#222831'); t.r(3, 0, 26, TS - 3, '#2c323b'); shelfRow(t, 2); shelfRow(t, 15); t.r(2, TS - 4, 28, 4, '#000000', 26); }],
+  ['bookshelf_t', (t) => { t.r(2, 0, 28, DS, '#222831'); t.r(3, 1, 26, DS - 1, '#2c323b'); shelfRow(t, 4); shelfRow(t, 17); }],
+  ['bookshelf_b', (t) => { t.r(2, 0, 28, DS - 2, '#222831'); t.r(3, 0, 26, DS - 3, '#2c323b'); shelfRow(t, 2); shelfRow(t, 15); t.r(2, DS - 4, 28, 4, '#000000', 26); }],
   ['cabinet', (t) => { t.r(4, 28, 24, 3, '#000000', 26); t.r(4, 2, 24, 27, PAL.metal); t.r(4, 2, 24, 2, PAL.metalHi); t.r(4, 2, 2, 27, PAL.metalHi); t.r(26, 2, 2, 27, PAL.metalSh); for (let i = 0; i < 2; i++) { t.r(7, 5 + i * 12, 18, 9, PAL.metalSh); t.r(13, 8 + i * 12, 6, 2, PAL.metalHi); } }],
   ['printer', (t) => { t.r(4, 26, 24, 3, '#000000', 26); t.r(5, 8, 22, 18, PAL.metal); t.r(5, 8, 22, 2, PAL.metalHi); t.r(8, 4, 16, 5, PAL.metalSh); t.r(9, 24, 14, 5, PAL.paper); t.r(8, 13, 6, 2, PAL.sage); }],
   ['plant_s', (t) => plantTD(t, false)],
   ['plant_b', (t) => plantTD(t, true)],
   ['water', (t) => { t.r(9, 28, 14, 2, '#000000', 26); t.r(8, 12, 16, 17, '#cbd1da'); t.r(9, 2, 14, 12, PAL.lav2); t.r(11, 4, 10, 8, '#cdd1ef'); }],
   ['sofa_l', (t) => { t.r(4, 6, 24, 22, PAL.chair); t.r(4, 6, 8, 22, PAL.metalSh); t.r(12, 9, 16, 14, PAL.chairHi); t.r(4, 26, 24, 3, '#000000', 24); }],
-  ['sofa_m', (t) => { t.r(0, 6, TS, 22, PAL.chair); t.r(0, 6, TS, 4, PAL.chairHi); t.r(2, 12, TS - 4, 12, PAL.chairSeat); t.r(0, 26, TS, 3, '#000000', 24); }],
+  ['sofa_m', (t) => { t.r(0, 6, DS, 22, PAL.chair); t.r(0, 6, DS, 4, PAL.chairHi); t.r(2, 12, DS - 4, 12, PAL.chairSeat); t.r(0, 26, DS, 3, '#000000', 24); }],
   ['sofa_r', (t) => { t.r(4, 6, 24, 22, PAL.chair); t.r(20, 6, 8, 22, PAL.metalSh); t.r(4, 9, 16, 14, PAL.chairHi); t.r(4, 26, 24, 3, '#000000', 24); }],
   ['table_tl', (t) => { t.r(10, 10, 22, 22, PAL.desk); t.r(10, 10, 22, 2, PAL.deskHi); t.r(10, 10, 2, 22, PAL.grain); t.r(20, 18, 12, 10, PAL.deskSh, 50); }],
   ['table_tr', (t) => { t.r(0, 10, 22, 22, PAL.desk); t.r(0, 10, 22, 2, PAL.deskHi); t.r(20, 10, 2, 22, PAL.deskSh); t.r(0, 18, 12, 10, PAL.deskSh, 50); }],
@@ -274,7 +278,7 @@ const TILES = [
   ['poster', (t) => { t.r(8, 3, 16, 24, PAL.ink); t.r(10, 5, 12, 20, PAL.paper); t.r(12, 7, 8, 9, PAL.plum); for (let i = 0; i < 3; i++) t.r(12, 18 + i * 2, 8 - i, 1, PAL.paperLn); }],
   ['statuslight', (t) => { t.r(7, 12, 18, 8, PAL.ink); t.r(7, 12, 18, 2, '#3a414c'); t.r(10, 15, 3, 3, PAL.sage); t.r(15, 15, 3, 3, PAL.lav); t.r(20, 15, 3, 3, PAL.coral); }],
   ['lamp', (t) => { t.r(11, 22, 12, 3, '#000000', 22); t.r(12, 8, 9, 7, '#cdd1ef', 34); t.r(12, 20, 8, 4, PAL.metal); t.r(15, 12, 2, 9, PAL.metalSh); t.r(13, 9, 6, 4, PAL.metal); t.r(14, 12, 4, 2, '#cdd1ef'); }],
-  ['door_mat', (t) => { t.fill(PAL.corridor); t.r(0, 0, TS, 2, PAL.tileB); t.r(0, 0, 2, TS, PAL.wallSh); t.r(TS - 2, 0, 2, TS, PAL.wallSh); }],
+  ['door_mat', (t) => { t.fill(PAL.corridor); t.r(0, 0, DS, 2, PAL.tileB); t.r(0, 0, 2, DS, PAL.wallSh); t.r(DS - 2, 0, 2, DS, PAL.wallSh); }],
   ['box', (t) => { t.r(4, 7, 24, 21, PAL.box); t.r(4, 7, 24, 3, PAL.boxHi); t.r(14, 5, 6, 3, '#c9bfa6'); t.r(4, 17, 24, 1, '#6f6657'); }],
   ['server', (t) => { t.r(5, 2, 22, 28, '#11151d'); for (let r = 0; r < 4; r++) { t.r(8, 4 + r * 7, 16, 5, '#1b2230'); t.r(21, 5 + r * 7, 2, 2, [PAL.sage, PAL.lav, PAL.coral, PAL.sage][r]); } }],
   // ── decorative props (object layer) — to fill the office densely ──
@@ -291,13 +295,13 @@ const TILES = [
 function floorGrain(t, base, seam) {
   t.fill(base);
   // subtle speckle
-  for (let i = 0; i < 10; i++) { const x = (i * 7 + 3) % TS, y = (i * 11 + 5) % TS; t.r(x, y, 1, 1, seam, 40); }
-  t.r(0, 0, TS, 1, seam, 60); t.r(0, 0, 1, TS, seam, 60);
+  for (let i = 0; i < 14; i++) { const x = (i * 7 + 3) % DS, y = (i * 11 + 5) % DS; t.r(x, y, 1, 1, seam, 40); }
+  t.r(0, 0, DS, 1, seam, 60); t.r(0, 0, 1, DS, seam, 60);
 }
 function floorTile(t, base, seam) {
   t.fill(base);
-  t.r(0, 0, TS, 1, seam); t.r(0, 0, 1, TS, seam);
-  t.r(0, 0, TS, 1, PAL.white, 18);
+  t.r(0, 0, DS, 1, seam); t.r(0, 0, 1, DS, seam);
+  t.r(0, 0, DS, 1, PAL.white, 18);
 }
 function shelfRow(t, y) {
   const sp = [PAL.lav, PAL.sage, PAL.rose, PAL.lav2, PAL.coral];
@@ -307,9 +311,9 @@ function shelfRow(t, y) {
 function rugSlices(prefix, dark, mid, bright) {
   return [
     [`${prefix}_c`, (t) => { t.fill(dark); }], // center
-    [`${prefix}_e`, (t) => { t.fill(dark); t.r(0, 0, TS, 3, mid); }], // top edge
-    [`${prefix}_k`, (t) => { t.fill(dark); t.r(0, 0, TS, 3, mid); t.r(0, 0, 3, TS, mid); t.r(0, 0, 5, 5, bright); }], // top-left corner
-    [`${prefix}_i`, (t) => { t.fill(dark); t.r(2, 2, TS - 4, TS - 4, mid, 40); }], // inner accent
+    [`${prefix}_e`, (t) => { t.fill(dark); t.r(0, 0, DS, 3, mid); }], // top edge
+    [`${prefix}_k`, (t) => { t.fill(dark); t.r(0, 0, DS, 3, mid); t.r(0, 0, 3, DS, mid); t.r(0, 0, 5, 5, bright); }], // top-left corner
+    [`${prefix}_i`, (t) => { t.fill(dark); t.r(2, 2, DS - 4, DS - 4, mid, 40); }], // inner accent
   ];
 }
 
