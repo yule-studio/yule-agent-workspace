@@ -58,10 +58,14 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   const hLine = (c0, c1, r) => Array.from({ length: c1 - c0 + 1 }, (_, i) => [c0 + i, r]);
   const vLine = (r0, r1, c) => Array.from({ length: r1 - r0 + 1 }, (_, i) => [c, r0 + i]);
 
-  const screens = ['monitor_a', 'monitor_b', 'monitor_c'];
-  const deskTriple = (pc, r, flipV = false) => {
+  // variant pools — chosen deterministically per pod index so no two pods are
+  // copy-paste, but the same seat always gets the same setup.
+  const MONS = ['monitor_a', 'monitor_b', 'monitor_c', 'monitor_d', 'monitor_dual', 'monitor_vert', 'monitor_large', 'monitor_combo'];
+  const UPCH = ['chair_up', 'chair_exec_up', 'chair_mesh_up'];
+  const CLUT = ['clutter_a', 'clutter_b', 'clutter_c', 'clutter_d', 'clutter_e'];
+  const deskTriple = (pc, r, flipV = false, v = '') => {
     const f = flipV ? FLIP_V : 0;
-    set(furniture, pc, r, g('desk_l') | f); set(furniture, pc + 1, r, g('desk_m') | f); set(furniture, pc + 2, r, g('desk_r') | f);
+    set(furniture, pc, r, g(`desk${v}_l`) | f); set(furniture, pc + 1, r, g(`desk${v}_m`) | f); set(furniture, pc + 2, r, g(`desk${v}_r`) | f);
     collide(pc, r, 3, 1);
   };
 
@@ -73,12 +77,20 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   let s = 0;
   for (const pr of podBlocks) {
     for (const pc of podCols) {
-      deskTriple(pc, pr, true); // down-desk (front edge up, partition down)
-      deskTriple(pc, pr + 1); // up-desk
-      set(objects, pc + 1, pr, g(screens[s % 3])); set(objects, pc, pr, g('keyboard')); set(objects, pc + 2, pr, g('deskprops'));
-      set(objects, pc + 1, pr + 1, g(screens[(s + 1) % 3]) | FLIP_V); set(objects, pc + 2, pr + 1, g('keyboard')); set(objects, pc, pr + 1, g('deskprops'));
+      const v = s % 2 ? '2' : ''; // alternate partition material
+      deskTriple(pc, pr, true, v); // down-desk (front edge up, partition down)
+      deskTriple(pc, pr + 1, false, v); // up-desk
+      // down-desk row (agent above): monitor centre + keyboard + clutter combo
+      set(objects, pc + 1, pr, g(MONS[s % MONS.length]));
+      set(objects, pc, pr, g('keyboard'));
+      set(objects, pc + 2, pr, g(CLUT[s % CLUT.length]));
+      // up-desk row (agent below): monitor (V-flip → screen faces down) + clutter + keyboard
+      set(objects, pc + 1, pr + 1, g(MONS[(s + 3) % MONS.length]) | FLIP_V);
+      set(objects, pc, pr + 1, g(CLUT[(s + 2) % CLUT.length]));
+      set(objects, pc + 2, pr + 1, g('keyboard'));
+      // chairs — up-seat varies (task/exec/mesh), down-seat task
       set(furniture, pc + 1, pr - 1, g('chair_down')); seat(pc + 1, pr - 1, 'member', 'down');
-      set(furniture, pc + 1, pr + 2, g('chair_up')); seat(pc + 1, pr + 2, 'member', 'up');
+      set(furniture, pc + 1, pr + 2, g(UPCH[s % UPCH.length])); seat(pc + 1, pr + 2, 'member', 'up');
       s++;
     }
   }
@@ -116,7 +128,7 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   set(furniture, 28, 5, g('table_bl')); set(furniture, 29, 5, g('table_br'));
   set(furniture, 27, 7, g('bookshelf_t')); set(furniture, 30, 6, g('plant_b'));
   set(furniture, 29, 7, g('chair_up')); seat(29, 7, 'member', 'up');
-  set(furniture, 27, 6, g('chair_right' in nameToGid ? 'chair_right' : 'chair_down')); // reading chair faces shelf
+  set(furniture, 27, 6, g('chair_visitor')); // reading chair faces shelf
   seat(27, 6, 'member', 'left');
   set(furniture, 30, 3, g('water'));
   poi(28, 5, 'lounge', 'up');
@@ -129,10 +141,10 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   wallLine(vLine(16, 19, 11)); // right wall vs storage
   rug(furniture, set, g, FLIP_H, FLIP_V, 'rug_l', 4, 16, 9, 19);
   deskTriple(4, 16, false);
-  set(objects, 4, 16, g('monitor_a')); set(objects, 5, 16, g('monitor_b')); set(objects, 6, 16, g('deskprops'));
+  set(objects, 4, 16, g('monitor_large')); set(objects, 5, 16, g('clutter_a')); set(objects, 6, 16, g('laptop'));
   set(objects, 6, 15, g('lamp'));
-  set(furniture, 5, 17, g('chair_up')); seat(5, 17, 'tech-lead', 'up');
-  set(furniture, 4, 18, g('chair_down')); set(furniture, 7, 18, g('chair_down'));
+  set(furniture, 5, 17, g('chair_exec_up')); seat(5, 17, 'tech-lead', 'up');
+  set(furniture, 4, 18, g('chair_visitor')); set(furniture, 7, 18, g('chair_visitor'));
   seat(4, 18, 'visitor', 'up'); seat(7, 18, 'visitor', 'up');
   set(objects, 3, 15, g('board_kanban')); set(objects, 9, 15, g('statuslight'));
   set(furniture, 10, 18, g('bookshelf_t')); set(furniture, 3, 19, g('plant_b'));
@@ -143,7 +155,7 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   // =====================================================================
   set(furniture, 12, 16, g('desk_l')); set(furniture, 13, 16, g('desk_r'));
   collide(12, 16, 2, 1);
-  set(objects, 12, 16, g('monitor_c')); set(objects, 13, 16, g('keyboard'));
+  set(objects, 12, 16, g('monitor_combo')); set(objects, 13, 16, g('clutter_c'));
   set(furniture, 12, 17, g('chair_up')); seat(12, 17, 'assistant', 'up');
   set(furniture, 15, 15, g('cabinet')); set(furniture, 16, 15, g('cabinet'));
   set(furniture, 15, 18, g('printer')); set(furniture, 17, 18, g('box'));
