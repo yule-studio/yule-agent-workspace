@@ -1,9 +1,9 @@
 {
-  "tile": 32,
+  "tile": 64,
   "cols": 12,
   "image": "tileset.png",
-  "imageW": 384,
-  "imageH": 224,
+  "imageW": 768,
+  "imageH": 448,
   "names": {
     "floor_carpet_a": 1,
     "floor_carpet_b": 2,
