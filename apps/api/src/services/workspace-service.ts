@@ -16,6 +16,8 @@ import {
   buildSnapshot,
   checkBudget,
   checkGlobalCaps,
+  deriveActivity,
+  deriveLocationIntent,
   modeForState,
   newBudget,
   recordSpend,
@@ -24,14 +26,15 @@ import {
 } from '@yule/core';
 import type { AgentCoreAdapter, AgentStepResult } from '@yule/agent-core-adapter';
 import {
-  AGENT_ROLES,
   isTerminal,
-  type AgentPresence,
   type AgentRole,
+  type AgentView,
   type ApprovalRecord,
+  type MeetingView,
   type Session,
   type SessionState,
   type StepKind,
+  type StudioAgent,
   type Task,
   type TaskPriority,
   type TaskSource,
@@ -40,6 +43,7 @@ import {
 import type { ApiConfig } from '../config.js';
 import type { EventBus } from '../events/bus.js';
 import type { EventRepo } from '../repositories/events.js';
+import type { MeetingRepo } from '../repositories/meetings.js';
 import type { SessionRepo } from '../repositories/sessions.js';
 import type { TaskRepo } from '../repositories/tasks.js';
 import type { TransitionRepo } from '../repositories/transitions.js';
@@ -79,6 +83,7 @@ export interface Repos {
   transitions: TransitionRepo;
   usage: UsageRepo;
   events: EventRepo;
+  meetings: MeetingRepo;
 }
 
 export class WorkspaceService {
@@ -87,7 +92,14 @@ export class WorkspaceService {
     private readonly bus: EventBus,
     private readonly adapter: AgentCoreAdapter,
     private readonly config: ApiConfig,
+    /** Agent registry loaded from the engine adapter at boot (dynamic, not fixed). */
+    private readonly registry: StudioAgent[],
   ) {}
+
+  /** The agent registry (one entry == one office character). */
+  agents(): StudioAgent[] {
+    return this.registry;
+  }
 
   private now(): string {
     return new Date().toISOString();
@@ -148,6 +160,8 @@ export class WorkspaceService {
       id: randomUUID(),
       taskId: task.id,
       role: task.role,
+      agentId: this.assignAgent(task.role),
+      groupId: null,
       state: 'draft',
       priorState: null,
       runtimeMode: modeForState('draft'),
@@ -356,23 +370,63 @@ export class WorkspaceService {
 
   // ── Presence + status ───────────────────────────────────────────────────────
 
-  agentPresence(): AgentPresence[] {
+  /**
+   * Live per-agent views — one entry per registry agent (NOT per role). Each
+   * agent's activity / where it should stand is derived from its active session
+   * and meeting membership. This is the single source the dashboard and the
+   * pixel office both render from.
+   */
+  agentViews(): AgentView[] {
     const now = this.now();
     const active = this.repos.sessions.listActive();
-    const byRole = this.repos.usage.byRoleToday(now);
-    return AGENT_ROLES.map((role) => {
-      const session = active.find((s) => s.role === role) ?? null;
-      const presence: AgentPresence = {
-        role,
+    const byAgent = new Map<string, Session>();
+    for (const s of active) if (s.agentId) byAgent.set(s.agentId, s);
+    const meetingByAgent = this.repos.meetings.byAgent();
+    const usageByRole = this.repos.usage.byRoleToday(now);
+
+    return this.registry.map((a) => {
+      const session = byAgent.get(a.id) ?? null;
+      const meeting = meetingByAgent.get(a.id) ?? null;
+      const inMeeting = !!meeting;
+      const state = session?.state ?? null;
+      const task = session ? this.repos.tasks.get(session.taskId) : null;
+      return {
+        id: a.id,
+        name: a.name,
+        role: a.role,
+        title: a.title,
+        kind: a.kind,
+        avatarSeed: a.avatarSeed,
+        activity: inMeeting ? 'meeting' : deriveActivity(state),
+        locationIntent: deriveLocationIntent(state, inMeeting),
+        state,
         mode: session ? session.runtimeMode : 'idle',
-        state: session ? session.state : null,
-        currentSessionId: session ? session.id : null,
-        statusLine: session ? this.statusLine(session) : null,
-        tokensToday: byRole[role] ?? 0,
-        updatedAt: session ? session.updatedAt : now,
-      };
-      return presence;
+        statusLine: meeting ? `In meeting · ${meeting.topic}` : session ? this.statusLine(session) : null,
+        currentSessionId: session?.id ?? null,
+        currentTaskTitle: task?.title ?? null,
+        groupId: meeting?.groupId ?? session?.groupId ?? null,
+        tokensToday: session ? (usageByRole[a.role] ?? 0) : 0,
+        updatedAt: session?.updatedAt ?? now,
+      } satisfies AgentView;
     });
+  }
+
+  meetings(): MeetingView[] {
+    return this.repos.meetings.list();
+  }
+
+  /** Create / update a meeting (gathering of agents). */
+  setMeeting(groupId: string, topic: string, participantIds: string[], state: SessionState | null = null): void {
+    this.repos.meetings.upsert({ groupId, topic, participantIds, state }, this.now());
+  }
+
+  /** Pick an agent of the given role, preferring one not already busy. */
+  private assignAgent(role: AgentRole): string | null {
+    const candidates = this.registry.filter((a) => a.role === role);
+    if (candidates.length === 0) return null;
+    const busy = new Set(this.repos.sessions.listActive().map((s) => s.agentId).filter(Boolean));
+    const free = candidates.find((a) => !busy.has(a.id));
+    return (free ?? candidates[0]!).id;
   }
 
   status() {
@@ -381,11 +435,17 @@ export class WorkspaceService {
     const active = this.repos.sessions.listActive();
     const counts: Record<string, number> = {};
     for (const s of active) counts[s.state] = (counts[s.state] ?? 0) + 1;
+    const activeAgents = new Set(active.map((s) => s.agentId).filter(Boolean)).size;
     return {
       now,
       adapter: this.adapter.describe(),
       tasks: tasks.length,
+      agents: this.registry.length,
+      activeAgents,
       activeSessions: active.length,
+      meetings: this.repos.meetings.list().length,
+      blocked: counts['blocked'] ?? 0,
+      failed: counts['failed'] ?? 0,
       sessionsByState: counts,
       tokens: {
         spentToday: this.repos.usage.spentToday(now),
@@ -474,8 +534,9 @@ export class WorkspaceService {
     this.bus.publish('alert', { level, dedupeKey, title, body, taskId, sessionId }, dedupeKey);
   }
 
-  private emitPresence(role: AgentRole): void {
-    const presence = this.agentPresence().find((p) => p.role === role);
-    if (presence) this.bus.publish('agent.presence', { presence });
+  private emitPresence(_role: AgentRole): void {
+    // Presence is derived on read via agentViews(); the web refetches it on
+    // session.created / session.transition events, so there is nothing to push
+    // here. Kept as a hook for a future per-agent presence event.
   }
 }
