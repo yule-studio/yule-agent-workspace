@@ -17,6 +17,10 @@ const MEMBERS: Record<AgentRole, string[]> = {
     'frontend-engineer',
     'qa-engineer',
     'devops-engineer',
+    // additional members — proves the office grows dynamically with the registry
+    'security-engineer',
+    'data-engineer',
+    'platform-engineer',
   ],
   planning: [],
   product: ['product-manager', 'user-researcher', 'growth-analyst'],
@@ -40,13 +44,27 @@ function seed(id: string): number {
   return h % 997;
 }
 
+/** Derive capability tags from a member slug (used for floor/team classification). */
+function capsFor(slug: string): string[] {
+  return slug.split('-').filter((w) => w !== 'engineer' && w !== 'agent');
+}
+
 export function defaultRoster(): StudioAgent[] {
   const out: StudioAgent[] = [];
   for (const role of Object.keys(MEMBERS) as AgentRole[]) {
     const members = MEMBERS[role];
     if (members.length === 0) {
       const id = `${role}-agent`;
-      out.push({ id, name: `${titleCase(role)} Lead`, role, title: 'coordinator', kind: 'department', avatarSeed: seed(id) });
+      out.push({
+        id,
+        name: `${titleCase(role)} Lead`,
+        role,
+        title: 'coordinator',
+        kind: 'department',
+        capabilities: [role],
+        metadata: null,
+        avatarSeed: seed(id),
+      });
       continue;
     }
     for (const m of members) {
@@ -57,9 +75,20 @@ export function defaultRoster(): StudioAgent[] {
         role,
         title: m,
         kind: 'member',
+        capabilities: capsFor(m),
+        metadata: null,
         avatarSeed: seed(id),
       });
     }
   }
   return out;
 }
+
+/**
+ * The agent registry source. `yule-studio-agent` is the eventual source of
+ * truth (via the HTTP adapter's `GET /v1/agents`); until then this normalized
+ * mock stands in. Named for discoverability — the workspace reads agents only
+ * through the adapter, never a hardcoded UI list.
+ */
+export const getAgentRegistry = defaultRoster;
+export const loadStudioAgents = defaultRoster;
