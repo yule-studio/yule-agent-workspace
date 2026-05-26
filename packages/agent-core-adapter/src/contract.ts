@@ -18,6 +18,7 @@ import type {
   ModelTier,
   SessionState,
   StepKind,
+  StudioAgent,
   TransitionEvent,
 } from '@yule/shared-types';
 
@@ -71,6 +72,12 @@ export interface AdapterHealth {
 export interface AgentCoreAdapter {
   describe(): { mode: 'mock' | 'http'; engineUrl?: string };
   health(): Promise<AdapterHealth>;
+  /**
+   * The agent registry — the set of agents the engine defines (departments and
+   * their members). Dynamic: the workspace renders one character per entry, so
+   * the office is never a fixed list of roles.
+   */
+  listAgents(): Promise<StudioAgent[]>;
   /** Execute exactly one bounded step and report the outcome. */
   runStep(req: AgentStepRequest): Promise<AgentStepResult>;
 }

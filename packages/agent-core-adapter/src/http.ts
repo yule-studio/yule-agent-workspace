@@ -9,7 +9,9 @@
  * workspace to be the source of truth. If the engine bridge is not yet
  * implemented, `health()` reports not-ok and the API stays on the mock adapter.
  */
+import type { StudioAgent } from '@yule/shared-types';
 import type { AdapterHealth, AgentCoreAdapter, AgentStepRequest, AgentStepResult } from './contract.js';
+import { defaultRoster } from './roster.js';
 
 export interface HttpAdapterOptions {
   url: string;
@@ -41,6 +43,20 @@ export class HttpAgentCoreAdapter implements AgentCoreAdapter {
       };
     } catch (err) {
       return { ok: false, mode: 'http', detail: `engine unreachable: ${(err as Error).message}` };
+    }
+  }
+
+  async listAgents(): Promise<StudioAgent[]> {
+    // Engine is the source of truth for the roster; fall back to the embedded
+    // roster if the engine has not implemented /v1/agents yet.
+    try {
+      const res = await this.fetch('/v1/agents', { method: 'GET' });
+      if (!res.ok) return defaultRoster();
+      const body = (await res.json()) as { agents?: StudioAgent[] } | StudioAgent[];
+      const agents = Array.isArray(body) ? body : (body.agents ?? []);
+      return agents.length ? agents : defaultRoster();
+    } catch {
+      return defaultRoster();
     }
   }
 
