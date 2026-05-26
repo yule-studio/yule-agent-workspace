@@ -86,6 +86,23 @@ function deskTop(t, x, y, w, h) {
   t.r(x, y + h - 4, w, 4, PAL.deskSh); // FRONT edge (thickness)
   t.r(x, y + h - 1, w, 1, PAL.deskEdge);
 }
+// A single workstation desk tile, oriented "front edge at the bottom" (the
+// agent sits below). part = which atlas column (l/m/r) for side detail + seam.
+function wsDesk(t, x, w, part) {
+  // back partition panel (cubicle wall) — top
+  t.r(x, 0, w, 6, PAL.metal);
+  t.r(x, 0, w, 2, PAL.metalHi);
+  t.r(x, 6, w, 2, '#000000', 30); // panel cast shadow onto desk
+  // desk surface
+  t.r(x, 8, w, 18, PAL.desk);
+  t.r(x, 8, w, 2, PAL.deskHi);
+  // thick FRONT edge (toward the seated agent)
+  t.r(x, 26, w, 5, PAL.deskSh);
+  t.r(x, 31, w, 1, PAL.deskEdge);
+  if (part === 'l') t.r(x, 8, 2, 18, PAL.grain); // lit left side
+  if (part === 'r') t.r(x + w - 2, 8, 2, 18, PAL.deskSh); // shadow right side
+  if (part === 'm') t.r(x + w / 2, 9, 1, 16, PAL.grain); // per-seat seam
+}
 function monitor(t, x, y, scr) {
   const s = SCREENS[scr % SCREENS.length];
   t.r(x + 4, y + 13, 8, 2, '#000000', 38); // contact shadow
@@ -139,9 +156,11 @@ const TILES = [
   ['part_h', (t) => { t.r(0, 11, TS, 8, PAL.metal); t.r(0, 11, TS, 2, PAL.metalHi); t.r(0, 17, TS, 2, PAL.metalSh); t.r(0, 19, TS, 2, '#000000', 26); }],
   ['part_v', (t) => { t.r(12, 0, 8, TS, PAL.metal); t.r(12, 0, 2, TS, PAL.metalHi); t.r(18, 0, 2, TS, PAL.metalSh); t.r(20, 0, 2, TS, '#000000', 26); }],
   // desks (3-wide cluster; flips reuse for the opposite side)
-  ['desk_l', (t) => { deskTop(t, 6, 6, 26, 20); t.r(6, 6, 2, 20, PAL.grain); }],
-  ['desk_m', (t) => { deskTop(t, 0, 6, TS, 20); }],
-  ['desk_r', (t) => { deskTop(t, 0, 6, 26, 20); t.r(24, 6, 2, 20, PAL.deskSh); }],
+  // workstation desks: back partition panel (top) + surface + thick front edge
+  // (bottom). V-flip in the map for the opposite-facing row → shared partition.
+  ['desk_l', (t) => wsDesk(t, 6, 26, 'l')],
+  ['desk_m', (t) => wsDesk(t, 0, TS, 'm')],
+  ['desk_r', (t) => wsDesk(t, 0, 26, 'r')],
   ['desk_single', (t) => { deskTop(t, 3, 6, 26, 20); }],
   // desk gear (objects layer, transparent, overlaps desk)
   ['monitor_a', (t) => monitor(t, 8, 4, 0)],
@@ -181,6 +200,15 @@ const TILES = [
   ['door_mat', (t) => { t.fill(PAL.corridor); t.r(0, 0, TS, 2, PAL.tileB); t.r(0, 0, 2, TS, PAL.wallSh); t.r(TS - 2, 0, 2, TS, PAL.wallSh); }],
   ['box', (t) => { t.r(4, 7, 24, 21, PAL.box); t.r(4, 7, 24, 3, PAL.boxHi); t.r(14, 5, 6, 3, '#c9bfa6'); t.r(4, 17, 24, 1, '#6f6657'); }],
   ['server', (t) => { t.r(5, 2, 22, 28, '#11151d'); for (let r = 0; r < 4; r++) { t.r(8, 4 + r * 7, 16, 5, '#1b2230'); t.r(21, 5 + r * 7, 2, 2, [PAL.sage, PAL.lav, PAL.coral, PAL.sage][r]); } }],
+  // ── decorative props (object layer) — to fill the office densely ──
+  ['trash', (t) => { t.r(10, 27, 12, 3, '#000000', 24); t.r(10, 10, 12, 18, PAL.metal); t.r(9, 8, 14, 3, PAL.metalSh); t.r(13, 13, 1, 12, PAL.metalSh); t.r(18, 13, 1, 12, PAL.metalSh); }],
+  ['postits', (t) => { t.r(7, 9, 9, 9, PAL.coral); t.r(17, 7, 9, 9, PAL.lav); t.r(11, 17, 9, 9, PAL.sage); t.r(7, 9, 9, 2, '#ffffff', 40); }],
+  ['docs', (t) => { t.r(6, 13, 22, 12, '#00000018'); t.r(5, 8, 14, 13, PAL.paper); for (let i = 0; i < 4; i++) t.r(7, 10 + i * 3, [10, 7, 11, 8][i], 1, PAL.paperLn); t.r(16, 11, 12, 11, PAL.paper); t.r(16, 11, 12, 2, '#cfd3da'); }],
+  ['corkboard', (t) => { t.r(2, 4, 28, 22, '#7d828b'); t.r(4, 6, 24, 18, '#9aa0a8'); for (let i = 0; i < 5; i++) t.r(6 + (i % 3) * 8, 9 + ((i / 3) | 0) * 8, 6, 6, [PAL.lav, PAL.sage, PAL.coral, PAL.paper, PAL.plum][i]); }],
+  ['sidetable', (t) => { t.r(8, 24, 16, 3, '#000000', 22); t.r(7, 8, 18, 16, PAL.desk); t.r(7, 8, 18, 2, PAL.deskHi); t.r(7, 22, 18, 3, PAL.deskSh); t.r(13, 10, 7, 8, PAL.accent ? PAL.lav : PAL.lav); t.r(13, 10, 7, 2, '#ffffff', 50); }],
+  ['rack', (t) => { t.r(3, 1, 26, 30, '#2c323b'); t.r(4, 2, 24, 29, '#384049'); for (let r = 0; r < 3; r++) { t.r(5, 4 + r * 9, 22, 7, '#262c34'); t.r(6, 5 + r * 9, 7, 5, PAL.box); t.r(14, 5 + r * 9, 6, 5, PAL.metal); t.r(21, 5 + r * 9, 5, 5, PAL.boxHi); } }],
+  ['clutter', (t) => { t.r(4, 18, 12, 10, PAL.box); t.r(4, 18, 12, 3, PAL.boxHi); t.r(17, 21, 9, 7, PAL.metal); t.r(6, 16, 8, 2, '#6f6657'); t.r(2, 26, 24, 2, '#000000', 16); }],
+  ['coffee', (t) => { t.r(6, 25, 20, 3, '#000000', 22); t.r(7, 6, 18, 19, PAL.metal); t.r(7, 6, 18, 3, PAL.metalHi); t.r(10, 10, 12, 7, PAL.bezel); t.r(11, 11, 10, 4, PAL.sage); t.r(9, 19, 5, 5, PAL.paper); t.r(18, 19, 5, 5, PAL.lav); }],
 ];
 
 function floorGrain(t, base, seam) {

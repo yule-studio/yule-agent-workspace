@@ -3,7 +3,7 @@
   "cols": 12,
   "image": "tileset.png",
   "imageW": 384,
-  "imageH": 160,
+  "imageH": 192,
   "names": {
     "floor_carpet_a": 1,
     "floor_carpet_b": 2,
@@ -58,6 +58,14 @@
     "lamp": 51,
     "door_mat": 52,
     "box": 53,
-    "server": 54
+    "server": 54,
+    "trash": 55,
+    "postits": 56,
+    "docs": 57,
+    "corkboard": 58,
+    "sidetable": 59,
+    "rack": 60,
+    "clutter": 61,
+    "coffee": 62
   }
 }
