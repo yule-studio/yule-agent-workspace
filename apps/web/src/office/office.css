@@ -1,15 +1,15 @@
 /* ════════════════ Yule HQ — pixel building + floor offices ════════════════ */
 
-/* full-viewport shell, right of the 64px rail */
+/* full-viewport shell, right of the floating dock */
 .hq-root {
   position: fixed;
-  left: 64px;
+  left: 76px;
   top: 0;
   right: 0;
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(1400px 700px at 55% -10%, #1b2128 0%, var(--bg) 60%);
+  background: var(--bg);
 }
 
 /* floating HUD */
@@ -78,15 +78,37 @@
   border-radius: 8px;
   padding: 0 5px;
 }
-.follow {
+.kst-chip {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: rgba(16, 18, 24, 0.82);
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+  color: var(--muted);
+}
+.kst-orb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow: 0 0 6px currentColor;
+}
+.phase-day .kst-orb { background: #e6ecf2; color: #aab6c4; }
+.phase-dawn .kst-orb { background: #cabfff; color: #a99cff; }
+.phase-dusk .kst-orb { background: #d98aa5; color: #d98aa5; }
+.phase-night .kst-orb { background: #d3dae8; color: #93a0bd; }
+.follow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
   color: var(--muted);
   cursor: pointer;
-  background: rgba(20, 24, 29, 0.8);
+  background: rgba(16, 18, 24, 0.82);
   backdrop-filter: blur(6px);
   padding: 6px 10px;
   border-radius: 9px;
@@ -223,25 +245,27 @@
   left: 50%;
   top: 50%;
   transform-origin: center center;
-  background-color: #232a33;
+  /* cool-gray office carpet (light room on a dark void, like the reference) */
+  background-color: #6b727b;
   background-image:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.022) 0 39px, rgba(0, 0, 0, 0.18) 39px 40px),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 39px, rgba(0, 0, 0, 0.18) 39px 40px),
-    linear-gradient(180deg, #28303a, #222932);
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0 31px, rgba(0, 0, 0, 0.1) 31px 32px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 31px, rgba(0, 0, 0, 0.1) 31px 32px),
+    linear-gradient(180deg, #767f89, #646b74);
   image-rendering: pixelated;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.6);
+  border-radius: 2px;
 }
 
+/* thick concrete walls separating the office from the dark void */
 .wall {
   position: absolute;
-  background: #3a434e;
+  background: var(--office-wall);
   z-index: 2;
 }
-.wall.top { top: 0; left: 0; right: 0; border-bottom: 3px solid #2a313a; box-shadow: inset 0 5px 7px rgba(0,0,0,.3); }
-.wall.bottom { bottom: 0; left: 0; right: 0; border-top: 3px solid #2a313a; }
-.wall.left { top: 0; bottom: 0; left: 0; border-right: 3px solid #2a313a; }
-.wall.right { top: 0; bottom: 0; right: 0; border-left: 3px solid #2a313a; }
+.wall.top { top: 0; left: 0; right: 0; border-bottom: 4px solid #b3b5ad; box-shadow: inset 0 6px 8px rgba(0,0,0,.18); }
+.wall.bottom { bottom: 0; left: 0; right: 0; border-top: 4px solid #b3b5ad; }
+.wall.left { top: 0; bottom: 0; left: 0; border-right: 4px solid #b3b5ad; }
+.wall.right { top: 0; bottom: 0; right: 0; border-left: 4px solid #b3b5ad; }
 
 .room {
   position: absolute;
@@ -268,13 +292,14 @@
     linear-gradient(-45deg, transparent 75%, #bcc5be 75%);
   background-size: 28px 28px;
   background-position: 0 0, 0 14px, 14px -14px, -14px 0;
-  box-shadow: inset 0 0 0 2px #6aa392;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
-.room.meeting-room .room-label { color: #3c5a50; }
-.room.review-table { background: #2a313a; box-shadow: inset 0 0 0 2px #3a434e; }
+.room.meeting-room .room-label { color: #4a4566; }
+.room.review-table { background: #b7bcb4; box-shadow: inset 0 0 0 2px #a4a99f; }
+.room.review-table .room-label { color: #45413f; }
 .room.planning-area,
-.room.lounge { background: rgba(255,255,255,.018); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
-.room.ops { background: #11161c; box-shadow: inset 0 0 0 2px #242c34; }
+.room.lounge { background: rgba(0, 0, 0, 0.07); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+.room.ops { background: #161a22; box-shadow: inset 0 0 0 2px #2a313c; }
 .ops-metrics {
   position: absolute;
   top: 8px;
@@ -344,6 +369,9 @@
 .char.walking .leg.r { animation: step 0.4s ease-in-out infinite 0.2s; }
 .char.act-idle svg, .char.act-waiting svg, .char.act-meeting svg { animation: idlebob 3s ease-in-out infinite; }
 .char.act-coding .arm, .char.act-running .arm { animation: type 0.5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: top center; }
+.blink { transform-box: fill-box; transform-origin: center; transform: scaleY(0); }
+.char.act-idle .blink, .char.act-waiting .blink, .char.act-meeting .blink { animation: blink 4.5s ease-in-out infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(0); } 97% { transform: scaleY(1); } }
 
 /* labels hidden by default; shown on hover or when the agent needs attention */
 .nameplate {
@@ -400,6 +428,10 @@
 .pixel-bubble::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--attention); }
 .pixel-bubble.alert { background: var(--s-blocked); color: #fff; }
 .pixel-bubble.alert::after { border-top-color: var(--s-blocked); }
+.pixel-bubble.meet { background: #e7ebe6; color: #14120c; padding: 3px 8px; font-weight: 800; letter-spacing: 1px; }
+.pixel-bubble.meet::after { border-top-color: #e7ebe6; }
+.pixel-bubble.calm { background: var(--accent); color: #06120f; }
+.pixel-bubble.calm::after { border-top-color: var(--accent); }
 
 @keyframes step { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.6px); } }

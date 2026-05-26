@@ -47,21 +47,25 @@ export function Nav() {
   const path = usePathname();
   return (
     <aside className="sidebar">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="logo" src="/icon.svg" alt="Yule" width={36} height={36} />
-      <nav className="nav">
-        {LINKS.map((l) => {
-          const active = l.href === '/' ? path === '/' : path.startsWith(l.href);
-          return (
-            <Link key={l.href} href={l.href} className={active ? 'active' : ''} aria-label={l.label}>
-              {l.ico}
-              <span className="label">{l.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-      <div className="foot">
-        <ConnDot />
+      <div className="dock">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="logo" src="/icon.svg" alt="Yule HQ" width={40} height={40} />
+        <span className="dock-sep" />
+        <nav className="nav">
+          {LINKS.map((l) => {
+            const active = l.href === '/' ? path === '/' : path.startsWith(l.href);
+            return (
+              <Link key={l.href} href={l.href} className={active ? 'active' : ''} aria-label={l.label}>
+                {l.ico}
+                <span className="label">{l.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <span className="dock-sep" />
+        <div className="foot">
+          <ConnDot />
+        </div>
       </div>
     </aside>
   );

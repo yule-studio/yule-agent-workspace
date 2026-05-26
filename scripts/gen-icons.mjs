@@ -18,25 +18,25 @@ mkdirSync(OUT, { recursive: true });
 
 // ── palette (rgb) ──────────────────────────────────────────────────────────
 const C = {
-  bg: [13, 17, 23], // #0d1117 deep graphite
-  bgEdge: [9, 12, 17],
-  frame: [56, 189, 248], // cyan #38bdf8
-  frameDim: [37, 120, 160],
-  wallA: [203, 213, 225], // cool concrete #cbd5e1
-  wallB: [148, 163, 184], // slate #94a3b8
-  roof: [71, 85, 105], // #475569
-  roofDk: [51, 65, 85], // #334155
-  winOff: [51, 65, 85],
-  winBlue: [125, 211, 252], // sky #7dd3fc
-  winLit: [45, 212, 191], // teal #2dd4bf (lit)
-  door: [30, 41, 59], // #1e293b
-  screen: [56, 189, 248],
+  bg: [17, 19, 24], // #111318 graphite
+  bgEdge: [12, 14, 18],
+  frame: [169, 156, 255], // lavender #a99cff
+  frameDim: [111, 99, 198], // #6f63c6
+  wallA: [216, 217, 210], // off-white #d8d9d2
+  wallB: [157, 163, 169], // #9da3a9
+  roof: [91, 96, 106],
+  roofDk: [59, 68, 82], // #3b4452
+  winOff: [59, 68, 82],
+  winBlue: [140, 147, 216], // periwinkle #8c93d8
+  winLit: [169, 156, 255], // lavender lit
+  door: [36, 42, 52], // #242a34
+  screen: [140, 147, 216],
   skin: [228, 196, 168],
-  hair: [51, 65, 85],
-  body: [45, 212, 191], // teal
-  green: [52, 211, 153], // #34d399 live
-  greenDk: [16, 150, 110],
-  shadow: [7, 11, 17],
+  hair: [59, 68, 82],
+  body: [217, 138, 165], // dusty rose
+  green: [159, 189, 159], // sage #9fbd9f live
+  greenDk: [112, 140, 112],
+  shadow: [10, 12, 16],
 };
 
 // ── tiny pixel canvas ──────────────────────────────────────────────────────

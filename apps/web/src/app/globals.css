@@ -1,34 +1,39 @@
 :root {
-  /* Muted modern pixel-workspace shell — graphite/charcoal (slightly warm-
-     neutral, not blue-black) with sage-teal primary and distributed violet /
-     coral / sage accents. Soft fills, not neon glow. */
-  --bg: #15181d;
-  --bg-2: #111419;
-  --panel: #1c2127;
-  --panel-2: #252b33;
-  --surface: #20262d;
-  --border: #2e353d;
-  --border-2: #3a424c;
-  --text: #e7ebe6;
-  --muted: #98a39c;
-  --accent: #6aa392; /* sage-teal — primary (muted) */
-  --accent-2: #5f9e8f; /* teal */
-  --violet: #8b80c9;
-  --attention: #e07a6e; /* coral — needs you */
+  /* Moonlit studio / mature operating tool — graphite with muted lavender
+     primary, dusty-rose secondary, sage success. No cyan/teal, no neon. */
+  --bg: #111318;
+  --bg-2: #0c0e12;
+  --panel: #1a1e26;
+  --surface: #1a1e26;
+  --panel-2: #242a34;
+  --soft: #2d3440;
+  --border: #3b4452;
+  --border-2: #4a5564;
+  --text: #f0f2f5;
+  --muted: #a8b0bd;
+  --accent: #a99cff; /* lavender / periwinkle — primary */
+  --accent-dark: #6f63c6;
+  --accent-2: #d98aa5; /* dusty rose — secondary */
+  --violet: #a99cff;
+  --success: #9fbd9f; /* sage */
+  --attention: #e47b89; /* coral — needs you */
+  --office-wall: #d8d9d2;
+  --office-floor: #9da3a9;
+  --office-carpet: #767f89;
   --radius: 12px;
 
-  /* state palette — muted, distributed (no neon) */
-  --s-draft: #6f7a72;
-  --s-queued: #7c8a86;
-  --s-planning: #8b80c9;
-  --s-awaiting_approval: #e07a6e;
-  --s-approved: #7bb38f;
-  --s-executing: #5b9bb5;
-  --s-reviewing: #7d86c4;
-  --s-blocked: #d2665d;
-  --s-ready_to_merge: #5fa394;
-  --s-deploying: #5fa3a3;
-  --s-done: #7bb38f;
+  /* state palette — lavender / mauve / sage / coral (no teal) */
+  --s-draft: #6f7a86;
+  --s-queued: #7c8794;
+  --s-planning: #a99cff;
+  --s-awaiting_approval: #e47b89;
+  --s-approved: #9fbd9f;
+  --s-executing: #8c93d8;
+  --s-reviewing: #b58ac4;
+  --s-blocked: #d9685f;
+  --s-ready_to_merge: #9fbd9f;
+  --s-deploying: #8c93d8;
+  --s-done: #9fbd9f;
   --s-failed: #cf5a52;
   --s-abandoned: #4a534d;
 }
@@ -59,63 +64,92 @@ a:hover {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
 }
 
-/* ── shell: slim global rail ── */
+/* ── shell: floating Yule HQ elevator dock ── */
 .layout {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: 76px 1fr;
   min-height: 100vh;
 }
 
 .sidebar {
-  border-right: 1px solid var(--border);
-  background: var(--bg-2);
-  padding: 14px 0;
+  background: transparent;
+  padding: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.dock {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  padding: 10px 7px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: sticky;
+  top: 16px;
 }
-.sidebar .logo {
-  width: 36px;
-  height: 36px;
-  margin-bottom: 14px;
-  border-radius: 9px;
+.dock .logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  margin-bottom: 4px;
+}
+.dock-sep {
+  width: 26px;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 .nav {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  width: 100%;
 }
 .nav a {
   position: relative;
-  width: 44px;
-  height: 40px;
+  width: 46px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--muted);
 }
 .nav a:hover {
-  background: var(--panel-2);
+  background: var(--soft);
   color: var(--text);
   text-decoration: none;
 }
+/* active = small illuminated elevator-button tile */
 .nav a.active {
-  background: rgba(106, 163, 146, 0.16);
+  background: var(--soft);
   color: var(--accent);
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 0 0 0 1px var(--border-2);
+}
+.nav a.active::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 5px rgba(169, 156, 255, 0.55);
 }
 .nav a .label {
   position: absolute;
-  left: 52px;
+  left: 56px;
   white-space: nowrap;
   background: var(--panel-2);
   border: 1px solid var(--border-2);
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 9px;
+  border-radius: 8px;
   font-size: 12px;
   color: var(--text);
   opacity: 0;
@@ -123,13 +157,18 @@ a:hover {
   transform: translateX(-4px);
   transition: opacity 0.1s, transform 0.1s;
   z-index: 80;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
 }
 .nav a:hover .label {
   opacity: 1;
   transform: translateX(0);
 }
-.sidebar .foot {
-  margin-top: auto;
+.dock .foot {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .main {
