@@ -110,27 +110,35 @@ function deskTop(t, x, y, w, h) {
 // Front face at bottom (agent sits below); V-flip in the map for the up-row.
 function wsDesk(t, x, w, part, panel = PAL.partPanel, panelHi = PAL.partPanelHi) {
   const POST = PAL.partPost, LEG = PAL.leg, mid = Math.round(w / 2);
-  t.raw(x + 1, 60, w - 1, 4, '#1b2230', 42); // floor contact shadow
+  // The partition is a low cubicle WALL standing at the very back; a transparent
+  // gap (y13..18, carpet shows through) separates it from the desk surface so it
+  // reads as a wall behind the desk — not a band glued to the desk top.
+  t.raw(x + 1, 60, w - 1, 4, '#1b2230', 42); // desk front floor contact shadow
   // legs (graphite) — centre on every tile + corner legs on the ends
-  t.raw(x + mid - 2, 48, 4, 16, LEG); t.raw(x + mid - 2, 48, 1, 16, '#454b54');
-  if (part === 'l') t.raw(x + 5, 48, 4, 16, LEG);
-  if (part === 'r') t.raw(x + w - 9, 48, 4, 16, LEG);
-  // back partition: FABRIC panel + top rail + weave texture + dark slate posts
-  t.raw(x, 0, w, 11, panel);
-  t.raw(x, 0, w, 4, panelHi);
-  t.raw(x, 9, w, 2, PAL.partPanelSh);
-  for (let fx = 2; fx < w; fx += 4) t.raw(x + fx, 4, 1, 5, PAL.partPanelSh); // weave
-  t.raw(x, 0, 4, 15, POST);
-  if (part === 'r') t.raw(x + w - 4, 0, 4, 15, POST);
-  t.raw(x, 11, w, 2, '#1b2230', 30); // partition cast shadow onto desk
-  // desk LAMINATE top + highlight + grain (warm-neutral, distinct from partition)
-  t.raw(x, 13, w, 35, PAL.deskTop);
-  t.raw(x, 13, w, 4, PAL.deskTopHi);
-  for (const gy of [21, 29, 37, 44]) t.raw(x + 4, gy, w - 8, 1, PAL.deskTopGrain);
-  // side divider panels (fabric) + lit/shadow edges
-  if (part === 'l') { t.raw(x, 13, 5, 47, panel); t.raw(x, 13, 5, 4, panelHi); t.raw(x + 5, 16, 1, 30, PAL.deskSide); }
-  if (part === 'r') { t.raw(x + w - 5, 13, 5, 47, PAL.partPanelSh); t.raw(x + w - 6, 16, 1, 30, PAL.deskSide); }
-  if (part === 'm') t.raw(x + mid, 15, 1, 30, PAL.deskTopGrain); // per-seat seam
+  t.raw(x + mid - 2, 49, 4, 15, LEG); t.raw(x + mid - 2, 49, 1, 15, '#454b54');
+  if (part === 'l') t.raw(x + 5, 49, 4, 15, LEG);
+  if (part === 'r') t.raw(x + w - 9, 49, 4, 15, LEG);
+  // back partition WALL (short) + top rail + weave
+  t.raw(x, 0, w, 8, panel);
+  t.raw(x, 0, w, 3, panelHi);
+  for (let fx = 2; fx < w; fx += 4) t.raw(x + fx, 3, 1, 4, PAL.partPanelSh); // weave
+  // vertical posts (columns) holding the partition ends, extending into the gap
+  t.raw(x, 0, 4, 14, POST);
+  if (part === 'r') t.raw(x + w - 4, 0, 4, 14, POST);
+  // cubicle-INTERIOR strip (shadowed floor between the back wall and the desk) —
+  // the breathing space that makes the partition read as a wall standing behind.
+  t.raw(x, 11, w, 7, '#5f6772');
+  t.raw(x, 11, w, 2, '#454c57'); // partition base shadow (depth)
+  t.raw(x, 16, w, 2, '#6b7480'); // subtle lift toward the desk's back edge
+  // desk LAMINATE top + highlight + grain
+  t.raw(x, 18, w, 30, PAL.deskTop);
+  t.raw(x, 18, w, 4, PAL.deskTopHi);
+  for (const gy of [25, 32, 39, 45]) t.raw(x + 4, gy, w - 8, 1, PAL.deskTopGrain);
+  // side divider panels wrap partition→front; sit slightly behind the desk
+  // surface (a thin shadow gap between the divider and the top)
+  if (part === 'l') { t.raw(x, 12, 4, 50, panel); t.raw(x, 12, 4, 3, panelHi); t.raw(x + 4, 18, 1, 30, '#1b2230', 34); }
+  if (part === 'r') { t.raw(x + w - 4, 12, 4, 50, PAL.partPanelSh); t.raw(x + w - 5, 18, 1, 30, '#1b2230', 34); }
+  if (part === 'm') t.raw(x + mid, 20, 1, 28, PAL.deskTopGrain); // per-seat seam
   // front face (dark cool) + lip — clearly darker than the top
   t.raw(x, 48, w, 10, PAL.deskFront);
   t.raw(x, 48, w, 1, '#6b727c');
