@@ -442,3 +442,140 @@
 @media (max-width: 1100px) {
   .inspector { display: none; }
 }
+
+/* ════════════════ Building scene (living pixel city) ════════════════ */
+.scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.scene-sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition: background 1.5s ease;
+}
+.phase-dawn .scene-sky { background: linear-gradient(180deg, #241f3a 0%, #46406b 45%, #7a7298 80%, #9a91ac 100%); }
+.phase-morning .scene-sky { background: linear-gradient(180deg, #34527a 0%, #6f93bf 55%, #a9c8df 100%); }
+.phase-day .scene-sky { background: linear-gradient(180deg, #3f72ad 0%, #79a7d6 55%, #bfe0f1 100%); }
+.phase-sunset .scene-sky { background: linear-gradient(180deg, #2e2746 0%, #5e4763 42%, #9c7286 74%, #c595a2 100%); }
+.phase-evening .scene-sky { background: linear-gradient(180deg, #141830 0%, #2a2848 55%, #44406a 100%); }
+.phase-night .scene-sky { background: linear-gradient(180deg, #090b12 0%, #10131f 60%, #1a2030 100%); }
+
+.celestial {
+  position: absolute;
+  width: 5%;
+  max-width: 64px;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.15));
+}
+.celestial svg { width: 100%; height: auto; image-rendering: pixelated; }
+
+.stars { position: absolute; inset: 0; z-index: 1; }
+.stars span {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #d6dce8;
+  border-radius: 1px;
+  animation: twinkle 3.5s ease-in-out infinite;
+}
+@keyframes twinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+.clouds { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.cloud {
+  position: absolute;
+  width: 130px;
+  left: -16%;
+  color: #e4eaf3;
+  opacity: 0.8;
+  animation: drift linear infinite;
+}
+.cloud svg { width: 100%; height: auto; image-rendering: pixelated; }
+.phase-dawn .cloud { color: #cdbce0; }
+.phase-morning .cloud { color: #e8eef6; }
+.phase-day .cloud { color: #f1f5fb; }
+.phase-sunset .cloud { color: #d9a8b2; opacity: 0.75; }
+.phase-evening .cloud { color: #5c5e7e; opacity: 0.6; }
+.phase-night .cloud { color: #3a4258; opacity: 0.55; }
+@keyframes drift { from { left: -16%; } to { left: 116%; } }
+
+.skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7%;
+  height: 34%;
+  z-index: 1;
+  opacity: 0.9;
+}
+.phase-night .skyline, .phase-evening .skyline { opacity: 1; }
+
+.power-pole {
+  position: absolute;
+  left: 1.5%;
+  bottom: 7%;
+  height: 42%;
+  width: auto;
+  z-index: 3;
+}
+
+.scene-building {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6%;
+}
+.scene-building .facade-wrap { width: 100%; height: 92%; padding: 0; background: none; }
+.scene-building .facade { height: 100%; }
+
+.scene-street {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7%;
+  z-index: 2;
+  background: linear-gradient(180deg, #232830, #171b22);
+  border-top: 3px solid #2e333c;
+}
+.scene-street .lamp { position: absolute; left: 20%; bottom: 100%; width: 4px; height: 60px; background: #2c3340; }
+.scene-street .lamp::after { content: ''; position: absolute; top: 0; left: -5px; width: 14px; height: 6px; background: #c9d2e0; border-radius: 2px; box-shadow: 0 0 8px rgba(201, 210, 224, 0.4); }
+.scene-street .bush { position: absolute; left: 60%; bottom: 100%; width: 40px; height: 16px; border-radius: 8px 8px 0 0; background: #3a5a44; }
+.scene-street .bush.b2 { left: 78%; width: 28px; height: 12px; background: #335039; }
+
+/* rooftop steam — pixel puffs rising + drifting */
+.steam .st { transform-box: fill-box; animation: steamRise 4.2s linear infinite; }
+.steam .s1 { animation-delay: 0s; }
+.steam .s2 { animation-delay: 1.05s; }
+.steam .s3 { animation-delay: 2.1s; }
+.steam .s4 { animation-delay: 3.15s; }
+@keyframes steamRise {
+  0% { opacity: 0; transform: translate(0, 6px) scale(0.5); }
+  18% { opacity: 0.85; }
+  65% { opacity: 0.45; }
+  100% { opacity: 0; transform: translate(12px, -26px) scale(1.2); }
+}
+
+/* inspector as a translucent overlay so the scene shows underneath */
+.inspector {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 300px;
+  z-index: 20;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(16, 18, 24, 0.66);
+  backdrop-filter: blur(12px);
+  padding: 60px 16px 18px;
+}
+
+/* kst chip orb — 6 phases */
+.phase-morning .kst-orb { background: #cfe0f0; color: #9fb6cc; }
+.phase-sunset .kst-orb { background: #d98aa5; color: #d98aa5; }
+.phase-evening .kst-orb { background: #8c93d8; color: #8c93d8; }

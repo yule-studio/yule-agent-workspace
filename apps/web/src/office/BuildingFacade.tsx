@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import type { AgentView, MeetingView } from '@yule/shared-types';
 import type { Building, Floor } from './org.js';
+import type { Phase } from './useKst.js';
 
 const W = 470;
 const SKY = 26;
@@ -45,13 +46,6 @@ const C = {
   exec: '#b59bd1',
 };
 
-const SKIES: Record<string, [string, string]> = {
-  day: ['#2b3650', '#46577a'],
-  dawn: ['#2a2742', '#4b4570'],
-  dusk: ['#2c2440', '#553a55'],
-  night: ['#0c0f17', '#171b27'],
-};
-
 export function BuildingFacade({
   building,
   selectedId,
@@ -63,12 +57,11 @@ export function BuildingFacade({
   building: Building;
   selectedId: string | null;
   meetings: MeetingView[];
-  phase: 'dawn' | 'day' | 'dusk' | 'night';
+  phase: Phase;
   onEnter: (id: string) => void;
   onHover: (f: Floor | null) => void;
 }) {
-  const sky = SKIES[phase] ?? SKIES.day!;
-  const night = phase === 'night' || phase === 'dusk';
+  const night = phase === 'night' || phase === 'evening';
   const [hover, setHover] = useState<string | null>(null);
   const floors = building.floors;
   const H = SKY + ROOF + floors.length * FH + LOBBY + GROUND;
@@ -85,44 +78,9 @@ export function BuildingFacade({
         className="facade"
         viewBox={`0 0 ${W} ${H}`}
         shapeRendering="crispEdges"
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="xMidYMax meet"
       >
-        {/* sky — shifts with KST phase */}
-        <defs>
-          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={sky[0]} />
-            <stop offset="1" stopColor={sky[1]} />
-          </linearGradient>
-        </defs>
-        <rect x="0" y="0" width={W} height={H} fill="url(#sky)" />
-
-        {/* sun (day/dawn) or moon (dusk/night) top-left of the sky */}
-        {!night ? (
-          <g>
-            <circle cx="58" cy="64" r="16" fill={phase === 'dawn' ? '#cabfff' : '#e6ecf2'} opacity="0.9" />
-            <circle cx="58" cy="64" r="22" fill={phase === 'dawn' ? '#a99cff' : '#cdd6e2'} opacity="0.18" />
-          </g>
-        ) : (
-          <g>
-            <circle cx="58" cy="62" r="14" fill="#d3dae8" opacity="0.92" />
-            <circle cx="52" cy="58" r="5" fill={sky[0]} opacity="0.9" />
-          </g>
-        )}
-        {/* stars (dusk/night) */}
-        {night &&
-          [
-            [30, 40],
-            [410, 50],
-            [120, 110],
-            [440, 200],
-            [24, 300],
-            [450, 360],
-            [90, 220],
-            [430, 430],
-          ].map(([x, y], k) => (
-            <rect key={k} x={x} y={y} width="2" height="2" fill="#cdd6e2" opacity={0.5 + (k % 3) * 0.15} />
-          ))}
-
+        {/* (sky/sun/moon/stars are drawn by the surrounding scene) */}
         {/* building body */}
         <rect x={BX} y={SKY + ROOF} width={BW} height={floors.length * FH + LOBBY} fill={C.wallA} />
         {/* pilasters */}
@@ -133,8 +91,29 @@ export function BuildingFacade({
         <g>
           <rect x={BX - 6} y={SKY + ROOF - 12} width={BW + 12} height="12" fill={C.ledgeDk} />
           <rect x={BX - 6} y={SKY} width={BW + 12} height={ROOF - 12} fill="#222a31" />
+          {/* AC unit with vents */}
           <rect x={BX + 14} y={SKY + 14} width="40" height={ROOF - 26} fill={C.hvac} />
+          <rect x={BX + 14} y={SKY + 14} width="40" height="2" fill="#7d847b" />
+          {[18, 26, 34, 42].map((dx) => (
+            <rect key={dx} x={BX + dx} y={SKY + 18} width="2" height={ROOF - 34} fill="#4c524a" />
+          ))}
           <rect x={BX + 60} y={SKY + 18} width="30" height={ROOF - 30} fill={C.hvac} />
+          <rect x={BX + 64} y={SKY + 22} width="22" height="6" fill="#4c524a" />
+          {/* exhaust vent pipe (steam source) */}
+          <rect x={BX + 104} y={SKY + 2} width="11" height={ROOF - 4} fill="#41454c" />
+          <rect x={BX + 104} y={SKY + 2} width="3" height={ROOF - 4} fill="#54595f" />
+          <rect x={BX + 102} y={SKY} width="15" height="4" fill="#2c3036" />
+          {/* animated pixel steam */}
+          <g className="steam">
+            <rect className="st s1" x={BX + 106} y={SKY - 8} width="6" height="6" fill="#e7ecf2" />
+            <rect className="st s2" x={BX + 108} y={SKY - 16} width="8" height="7" fill="#dde3ec" />
+            <rect className="st s3" x={BX + 110} y={SKY - 26} width="10" height="8" fill="#d2d9e4" />
+            <rect className="st s4" x={BX + 113} y={SKY - 36} width="9" height="7" fill="#c8d0dd" />
+          </g>
+          {/* satellite mast */}
+          <rect x={BX + 150} y={SKY + 6} width="3" height={ROOF - 8} fill={C.metalLt} />
+          <circle cx={BX + 151} cy={SKY + 4} r="6" fill="none" stroke={C.metalLt} strokeWidth="2" />
+          <rect x={BX + 149} y={SKY + 2} width="4" height="4" fill={C.exec} />
           {/* antenna + light */}
           <rect x={BX + BW - 70} y={SKY - 14} width="3" height={ROOF + 8} fill={C.metalLt} />
           <rect x={BX + BW - 75} y={SKY - 18} width="13" height="6" fill="#1b2026" />
