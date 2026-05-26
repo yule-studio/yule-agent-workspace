@@ -72,7 +72,7 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   // =====================================================================
   // MAIN BULLPEN — facing 2-row pods (cols 3..17, rows 3..12)
   // =====================================================================
-  const podCols = [3, 7, 11, 15];
+  const podCols = [3, 7, 12, 16]; // non-uniform gaps (1 / 2 / 1 tile) → less grid-like
   const podBlocks = [4, 9]; // top-desk row of each back-to-back block
   let s = 0;
   for (const pr of podBlocks) {
@@ -94,10 +94,13 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
       s++;
     }
   }
-  // bullpen wall decor + plants (cols 18..19 are the right aisle)
-  set(objects, 3, 2, g('whiteboard_l')); set(objects, 4, 2, g('whiteboard_r')); set(objects, 9, 2, g('corkboard')); set(objects, 14, 2, g('poster'));
-  set(furniture, 18, 4, g('plant_b')); set(furniture, 19, 8, g('water')); set(furniture, 18, 11, g('plant_b'));
-  set(furniture, 6, 7, g('plant_s')); set(furniture, 14, 7, g('plant_s'));
+  // bullpen wall decor (row 2 = top wall) above each pod
+  set(objects, 3, 2, g('whiteboard_l')); set(objects, 4, 2, g('whiteboard_r')); set(objects, 8, 2, g('corkboard')); set(objects, 13, 2, g('poster')); set(objects, 17, 2, g('board_kanban'));
+  // separators in the WIDE inter-pod gap (cols 10-11) — break the repeat grid
+  set(furniture, 10, 4, g('plant_b')); set(furniture, 10, 8, g('cabinet')); set(furniture, 11, 11, g('plant_b'));
+  // narrow-gap fillers (cols 6 / 15) + right aisle (col 19)
+  set(furniture, 6, 7, g('plant_s')); set(furniture, 15, 7, g('plant_s'));
+  set(furniture, 19, 4, g('plant_b')); set(furniture, 19, 8, g('water')); set(furniture, 19, 11, g('plant_b'));
   corridor(2, 13, 19, 14);
   poi(10, 13, 'corridor', 'down');
 
