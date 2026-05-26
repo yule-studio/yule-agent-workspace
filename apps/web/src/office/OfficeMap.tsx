@@ -6,7 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { AgentView, MeetingView } from '@yule/shared-types';
-import { BuildingFacade } from './BuildingFacade.js';
+import { BuildingScene } from './BuildingScene.js';
 import { FloorView } from './FloorView.js';
 import { Inspector } from './Inspector.js';
 import { buildBuilding, busiestFloorId, type Floor } from './org.js';
@@ -86,21 +86,20 @@ export function OfficeMap({
         </label>
       </div>
 
-      <div className="hq-body">
-        <div className="hq-stage">
-          {view === 'building' || !floor ? (
-            <BuildingFacade
-              building={building}
-              selectedId={floorId}
-              meetings={meetings}
-              phase={kst.phase}
-              onEnter={enter}
-              onHover={setHoverFloor}
-            />
-          ) : (
-            <FloorView floor={floor} meetings={meetings} onSelect={onSelect} />
-          )}
-        </div>
+      <div className="hq-stage">
+        {view === 'building' || !floor ? (
+          <BuildingScene
+            building={building}
+            selectedId={floorId}
+            meetings={meetings}
+            phase={kst.phase}
+            minutes={kst.minutes}
+            onEnter={enter}
+            onHover={setHoverFloor}
+          />
+        ) : (
+          <FloorView floor={floor} meetings={meetings} onSelect={onSelect} />
+        )}
         <Inspector building={building} floor={inspectFloor} onEnter={enter} />
       </div>
     </div>

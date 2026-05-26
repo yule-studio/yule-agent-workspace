@@ -121,51 +121,68 @@ function TeamFloor({
         <Prop key={x} kind="window" x={x} y={2} />
       ))}
 
-      {/* meeting room */}
-      <Prop kind="round-table" x={mz.rect.x + mz.rect.w / 2 - 75} y={120} />
-      <Prop kind="whiteboard" x={mz.rect.x + 22} y={70} w={150} />
-      <Prop kind="plant-tall" x={mz.rect.x + mz.rect.w - 50} y={70} />
+      {/* meeting room — table + chairs around + whiteboard + plant + cables */}
+      <Prop kind="round-table" x={mz.rect.x + mz.rect.w / 2 - 75} y={118} />
+      {[[-86, 60], [70, 60], [-86, 190], [70, 190]].map(([dx, dy], i) => (
+        <Prop key={i} kind="chair" seed={i} x={mz.rect.x + mz.rect.w / 2 + dx} y={mz.rect.y + dy} />
+      ))}
+      <Prop kind="whiteboard" x={mz.rect.x + 18} y={66} w={150} />
+      <Prop kind="plant" x={mz.rect.x + mz.rect.w - 44} y={66} seed={2} />
       {meeting && (
         <div className="meeting-topic" style={{ left: mz.rect.x + mz.rect.w / 2, top: mz.rect.y - 22 }}>
           <span className="mt-live" /> {meeting.topic} · {meeting.participantIds.filter((id) => floorIds.has(id)).length}
         </div>
       )}
 
-      {/* review room */}
+      {/* review room — long table + chairs + cabinet + docs */}
       <Prop kind="long-table" x={856 + 388 / 2 - 115} y={392} />
-      <Prop kind="cabinet" x={856 + 388 - 40} y={350} />
-      <Prop kind="plant" x={870} y={470} />
+      {[[-90, -8], [-30, -8], [40, -8], [-60, 86], [10, 86]].map(([dx, dy], i) => (
+        <Prop key={i} kind="chair" seed={i + 1} x={856 + 388 / 2 + dx} y={422 + dy} />
+      ))}
+      <Prop kind="file-cabinet" x={856 + 388 - 48} y={350} />
+      <Prop kind="document-stack" x={1190} y={420} />
 
-      {/* standup */}
+      {/* standup — rug + whiteboard + a couple plants */}
       <Prop kind="rug" x={70} y={636} w={300} h={150} tone="violet" />
-      <Prop kind="whiteboard" x={150} y={604} w={120} h={36} />
+      <Prop kind="whiteboard" x={150} y={602} w={120} h={36} />
+      <Prop kind="plant" x={350} y={742} seed={4} />
 
-      {/* lounge + cafe */}
-      <Prop kind="rug" x={470} y={636} w={300} h={150} />
+      {/* lounge + cafe — sofa, coffee bar, water cooler, plants, small rug */}
+      <Prop kind="rug" x={470} y={636} w={300} h={150} tone="rose" />
       <Prop kind="sofa" x={500} y={648} />
       <Prop kind="coffee-bar" x={660} y={744} />
       <Prop kind="water-cooler" x={790} y={636} />
-      <Prop kind="plant-tall" x={440} y={636} />
+      <Prop kind="plant" x={440} y={640} seed={0} />
+      <Prop kind="document-stack" x={620} y={700} />
 
-      {/* ops racks */}
-      <Prop kind="server-rack" x={opsX + 24} y={opsY + 70} />
-      <Prop kind="server-rack" x={opsX + 130} y={opsY + 70} />
-      <Prop kind="server-rack" x={opsX + 236} y={opsY + 70} />
+      {/* ops wall — racks + secure cabinet + box */}
+      <Prop kind="server-rack" x={opsX + 20} y={opsY + 70} />
+      <Prop kind="server-rack" x={opsX + 120} y={opsY + 70} />
+      <Prop kind="server-rack" x={opsX + 220} y={opsY + 70} />
+      <Prop kind="file-cabinet" x={opsX + 318} y={opsY + 84} />
+      <Prop kind="cardboard-box" x={opsX + 24} y={opsY + 160} />
 
-      {/* scattered props */}
-      <Prop kind="printer" x={800} y={120} />
-      <Prop kind="cabinet" x={22} y={120} />
-      <Prop kind="cabinet" x={22} y={300} />
-      <Prop kind="plant" x={812} y={300} />
-      <Prop kind="trash" x={790} y={470} />
-      <Prop kind="postits" x={300} y={26} />
-      <Prop kind="plant" x={420} y={470} />
+      {/* base scatter (fills empty floor) */}
+      <Prop kind="bookshelf" x={20} y={150} />
+      <Prop kind="file-cabinet" x={20} y={300} />
+      <Prop kind="plant" x={20} y={372} seed={1} />
+      <Prop kind="trash" x={120} y={500} />
+      <Prop kind="cardboard-box" x={780} y={300} />
+      <Prop kind="plant" x={810} y={372} seed={3} />
+      <Prop kind="printer" x={788} y={120} />
+      <Prop kind="postits" x={300} y={24} />
+      <Prop kind="shelf" x={420} y={22} />
+      <Prop kind="document-stack" x={560} y={26} />
+      <Prop kind="trash" x={760} y={500} />
+
+      {/* per-floor accent props (team character) */}
+      <FloorAccent name={floor.name} />
 
       {/* cubicles + chairs (occupied + furnished-empty, for density) */}
       {layout.cubicles.map((c, i) => (
         <div key={c.agentId ?? `empty-${i}`}>
-          <Prop kind="cubicle" x={c.x - 75} y={c.y - 64} />
-          <Prop kind="chair" x={c.x - 15} y={c.y + 6} />
+          <Prop kind="cubicle" seed={i * 5 + 1} x={c.x - 75} y={c.y - 82} />
+          <Prop kind="chair" seed={i * 3 + 2} x={c.x - 16} y={c.y + 4} />
         </div>
       ))}
       {layout.teamLabels.map((t, i) => (
@@ -237,22 +254,47 @@ function CeoOffice() {
       <Prop kind="plant" x={760} y={600} />
 
       {/* lounge corner */}
-      <Prop kind="rug" x={120} y={560} w={300} h={180} />
+      <Prop kind="rug" x={120} y={560} w={300} h={180} tone="rose" />
       <Prop kind="sofa" x={150} y={580} />
       <Prop kind="coffee-bar" x={170} y={668} w={120} h={44} />
-      <Prop kind="plant-tall" x={70} y={560} />
+      <Prop kind="plant" x={70} y={556} seed={0} />
       <Prop kind="trash" x={400} y={560} />
 
-      {/* shelves + plants + meeting nook */}
-      <Prop kind="cabinet" x={22} y={150} h={220} />
-      <Prop kind="cabinet" x={22} y={400} h={140} />
-      <Prop kind="plant-tall" x={1180} y={120} />
-      <Prop kind="rug" x={940} y={500} w={240} h={200} tone="violet" />
-      <Prop kind="round-table" x={980} y={520} w={150} h={130} />
-      <Prop kind="plant" x={1190} y={690} />
+      {/* shelves + plants + meeting nook + assistant desk */}
+      <Prop kind="bookshelf" x={22} y={150} h={220} />
+      <Prop kind="file-cabinet" x={22} y={400} />
+      <Prop kind="document-stack" x={70} y={420} />
+      <Prop kind="plant" x={1180} y={120} seed={2} />
+      <Prop kind="small-rug" x={930} y={520} w={240} h={170} tone="violet" />
+      <Prop kind="round-table" x={970} y={520} w={150} h={130} />
+      <Prop kind="chair" seed={1} x={1010} y={510} />
+      <Prop kind="chair" seed={2} x={1090} y={600} />
+      <Prop kind="plant" x={1190} y={690} seed={4} />
+      <Prop kind="cubicle" seed={9} x={250} y={150} />
+      <Prop kind="chair" seed={5} x={320} y={262} />
       <Prop kind="printer" x={1190} y={430} />
       <Prop kind="whiteboard" x={950} y={120} w={170} />
-      <Prop kind="server-rack" x={1130} y={300} />
+      <Prop kind="wall-board" x={520} y={120} />
     </>
   );
+}
+
+/** Per-floor accent props — gives each team a distinct office character. Placed
+ *  in the open aisle below the cubicles so they don't collide with desks. */
+function FloorAccent({ name }: { name: string }) {
+  const n = name.toLowerCase();
+  const P = (kind: Parameters<typeof Prop>[0]['kind'], x: number, y: number, seed = 0) => (
+    <Prop kind={kind} x={x} y={y} seed={seed} />
+  );
+  if (n.includes('engineering'))
+    return <>{P('server-rack', 660, 470)}{P('cardboard-box', 120, 478)}{P('document-stack', 300, 540)}{P('cardboard-box', 360, 470)}</>;
+  if (n.includes('ai') || n.includes('product'))
+    return <>{P('wall-board', 120, 450)}{P('postits', 320, 540)}{P('shelf', 480, 470)}{P('whiteboard', 620, 452, 0)}</>;
+  if (n.includes('growth') || n.includes('sales'))
+    return <>{P('wall-board', 120, 450)}{P('shelf', 480, 470)}{P('document-stack', 320, 540)}{P('plant', 660, 470, 3)}</>;
+  if (n.includes('platform') || n.includes('ops'))
+    return <>{P('server-rack', 120, 460)}{P('server-rack', 300, 460)}{P('file-cabinet', 500, 460)}{P('cardboard-box', 660, 472)}</>;
+  if (n.includes('operation'))
+    return <>{P('file-cabinet', 120, 460)}{P('file-cabinet', 180, 460)}{P('printer', 320, 470)}{P('document-stack', 460, 480)}{P('plant', 660, 470, 1)}</>;
+  return <>{P('plant', 300, 470, 2)}{P('shelf', 480, 470)}</>;
 }
