@@ -1,11 +1,11 @@
 'use client';
 /**
- * A floor is now rendered as a single pixel-art canvas bitmap (the office) with
- * agents as the only interactive overlay — see PixelFloorCanvas. No DOM
- * furniture / rooms / rounded boxes here.
+ * A floor is rendered as a Tiled tilemap background (real .tmj + tileset atlas,
+ * see TilemapFloor / tilemap.ts) with agents as the only interactive overlay.
+ * No hand-drawn CSS/canvas furniture.
  */
 import type { AgentView, MeetingView } from '@yule/shared-types';
-import { PixelFloorCanvas } from './PixelFloorCanvas.js';
+import { TilemapFloor } from './TilemapFloor.js';
 import type { Floor } from './org.js';
 
 export function FloorView({
@@ -17,5 +17,5 @@ export function FloorView({
   meetings: MeetingView[];
   onSelect: (a: AgentView) => void;
 }) {
-  return <PixelFloorCanvas floor={floor} meetings={meetings} onSelect={onSelect} />;
+  return <TilemapFloor floor={floor} meetings={meetings} onSelect={onSelect} />;
 }
