@@ -32,6 +32,24 @@ function useFit(): [React.RefObject<HTMLDivElement | null>, number] {
 
 const NEEDS = (a: AgentView) => a.activity === 'waiting' || a.activity === 'blocked';
 
+/** Small pixel speech bubble per activity (kept short so it doesn't cover the map). */
+function bubbleFor(a: AgentView): { text: string; cls: string } | null {
+  switch (a.activity) {
+    case 'blocked':
+      return { text: 'Blocked', cls: 'alert' };
+    case 'waiting':
+      return a.state === 'awaiting_approval'
+        ? { text: 'Approve?', cls: 'warn' }
+        : { text: 'Need input', cls: 'warn' };
+    case 'meeting':
+      return { text: '…', cls: 'meet' };
+    case 'reviewing':
+      return { text: 'Reviewing', cls: 'calm' };
+    default:
+      return null;
+  }
+}
+
 export function FloorView({
   floor,
   meetings,
@@ -143,9 +161,9 @@ function TeamFloor({
       <Prop kind="postits" x={300} y={26} />
       <Prop kind="plant" x={420} y={470} />
 
-      {/* cubicles + chairs */}
-      {layout.cubicles.map((c) => (
-        <div key={c.agentId}>
+      {/* cubicles + chairs (occupied + furnished-empty, for density) */}
+      {layout.cubicles.map((c, i) => (
+        <div key={c.agentId ?? `empty-${i}`}>
           <Prop kind="cubicle" x={c.x - 75} y={c.y - 64} />
           <Prop kind="chair" x={c.x - 15} y={c.y + 6} />
         </div>
@@ -161,6 +179,7 @@ function TeamFloor({
         const p = positioned.get(a.id);
         if (!p) return null;
         const working = a.activity === 'coding' || a.activity === 'running';
+        const bubble = bubbleFor(a);
         return (
           <div
             key={a.id}
@@ -172,9 +191,7 @@ function TeamFloor({
             onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(a)}
             title={`${a.name} · ${a.activity}`}
           >
-            {NEEDS(a) && a.statusLine && (
-              <div className={`pixel-bubble ${a.activity === 'blocked' ? 'alert' : 'warn'}`}>{a.statusLine}</div>
-            )}
+            {bubble && <div className={`pixel-bubble ${bubble.cls}`}>{bubble.text}</div>}
             <Character seed={a.avatarSeed} activity={a.activity} walking={p.walking} />
             {working && !p.walking && <span className="live-dot" />}
             <div className="nameplate">

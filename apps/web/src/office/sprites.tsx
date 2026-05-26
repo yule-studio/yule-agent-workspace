@@ -28,33 +28,33 @@ export type PropKind =
 
 const S = {
   outline: '#0e141d',
-  partition: '#3a4656',
-  partitionTop: '#4c5a6e',
-  glass: '#54707f',
-  desk: '#566173',
-  deskTop: '#6b768c',
-  deskEdge: '#3c4452',
-  bezel: '#141b26',
-  screenA: '#0f2a3a',
-  screenB: '#10322f',
-  codeC: '#38bdf8',
-  codeT: '#2dd4bf',
-  codeV: '#a78bfa',
-  key: '#cbd5e1',
-  keyDk: '#94a3b8',
-  paper: '#e5edf5',
-  mug: '#2dd4bf',
-  postit: '#fb7185',
-  metal: '#475569',
-  metalLt: '#64748b',
-  metalDk: '#334155',
-  green1: '#34d399',
-  green2: '#10b981',
-  green3: '#059669',
-  pot: '#334155',
-  led1: '#34d399',
-  led2: '#38bdf8',
-  led3: '#fb7185',
+  partition: '#3a4250',
+  partitionTop: '#4c5466',
+  glass: '#5a6473',
+  desk: '#565d6e',
+  deskTop: '#6b7384',
+  deskEdge: '#3c424c',
+  bezel: '#141821',
+  screenA: '#1d2236',
+  screenB: '#241f33',
+  codeC: '#8c93d8', // periwinkle
+  codeT: '#a99cff', // lavender
+  codeV: '#b58ac4', // mauve
+  key: '#cbd1da',
+  keyDk: '#959daa',
+  paper: '#e8eaef',
+  mug: '#9fbd9f', // sage
+  postit: '#e47b89', // coral
+  metal: '#475263',
+  metalLt: '#646e80',
+  metalDk: '#333a47',
+  green1: '#8fb58f',
+  green2: '#6fa07a',
+  green3: '#558464',
+  pot: '#333a47',
+  led1: '#9fbd9f',
+  led2: '#8c93d8',
+  led3: '#e47b89',
 };
 
 const fill = { shapeRendering: 'crispEdges' as const, style: { width: '100%', height: '100%', display: 'block' as const } };
@@ -170,7 +170,7 @@ function Whiteboard() {
 }
 
 function Cabinet() {
-  const binders = ['#38bdf8', '#a78bfa', '#2dd4bf', '#fb7185', '#7dd3fc'];
+  const binders = ['#8c93d8', '#a99cff', '#9fbd9f', '#e47b89', '#b58ac4'];
   return (
     <svg viewBox="0 0 14 64" {...fill}>
       <rect x="0" y="0" width="14" height="64" fill={S.metalDk} />
@@ -216,10 +216,10 @@ function CoffeeBar() {
 function WaterCooler() {
   return (
     <svg viewBox="0 0 16 30" {...fill}>
-      <rect x="2" y="10" width="12" height="18" fill="#cbd5e1" />
-      <rect x="2" y="10" width="12" height="3" fill="#94a3b8" />
-      <rect x="4" y="0" width="8" height="11" rx="2" fill="#7dd3fc" />
-      <rect x="5" y="2" width="6" height="7" rx="2" fill="#bfe9fb" />
+      <rect x="2" y="10" width="12" height="18" fill="#cbd1da" />
+      <rect x="2" y="10" width="12" height="3" fill="#959daa" />
+      <rect x="4" y="0" width="8" height="11" rx="2" fill="#aeb4e0" />
+      <rect x="5" y="2" width="6" height="7" rx="2" fill="#cdd1ef" />
       <rect x="6" y="20" width="4" height="2" fill={S.led2} />
     </svg>
   );
@@ -268,7 +268,7 @@ function LongTable() {
 }
 
 function Rug({ tone }: { tone?: string }) {
-  const c = tone === 'violet' ? ['#3b2f5e', '#5b4b8a', '#a78bfa'] : ['#0f3a44', '#13525e', '#2dd4bf'];
+  const c = tone === 'violet' ? ['#332c4a', '#4c4270', '#a99cff'] : ['#2b3142', '#3c455c', '#8c93d8'];
   return (
     <svg viewBox="0 0 100 60" preserveAspectRatio="none" {...fill}>
       <rect x="0" y="0" width="100" height="60" rx="6" fill={c[0]} />
