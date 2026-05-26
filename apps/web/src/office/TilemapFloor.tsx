@@ -12,20 +12,30 @@ import { Character } from './Character.js';
 import type { Floor } from './org.js';
 import { drawTile, drawTilemap, loadOffice, mapPixelSize, readAccents, readSeats, type SeatSlot, type TiledMap, type TileIndex } from './tilemap.js';
 
+// Activity-sentence speech bubbles. Quiet on idle/coding (the live-dot already
+// signals working) so the map isn't covered in chatter.
 function bubbleFor(a: AgentView): { text: string; cls: string } | null {
   switch (a.activity) {
     case 'blocked':
-      return { text: 'Blocked', cls: 'alert' };
+      return { text: 'Blocked — need help', cls: 'alert' };
     case 'waiting':
-      return a.state === 'awaiting_approval' ? { text: 'Approve?', cls: 'warn' } : { text: 'Need input', cls: 'warn' };
+      return a.state === 'awaiting_approval' ? { text: 'Waiting for approval…', cls: 'warn' } : { text: 'Need input?', cls: 'warn' };
     case 'meeting':
       return { text: '…', cls: 'meet' };
     case 'reviewing':
-      return { text: 'Reviewing', cls: 'calm' };
+      return { text: 'Need review?', cls: 'calm' };
+    case 'running':
+      return { text: 'Running tests…', cls: 'calm' };
+    case 'reading':
+      return { text: 'Reading docs…', cls: 'calm' };
+    case 'planning':
+      return { text: 'Planning…', cls: 'calm' };
     default:
-      return null;
+      return null; // idle / coding / done → no bubble
   }
 }
+
+const MENU_ITEMS = ['Assign Task', 'New Session', 'Session History', 'Stop Task'] as const;
 
 const isLead = (a: AgentView) => a.kind === 'department' || /lead|coordinator|principal|head/i.test(a.title);
 
@@ -134,6 +144,16 @@ export function TilemapFloor({
   }, [asset]);
 
   const placed = useMemo(() => (asset ? allocate(floor.agents, asset.seats) : []), [asset, floor]);
+  const [menu, setMenu] = useState<{ a: AgentView; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: Event) => { if (!(e.target as HTMLElement).closest?.('.ctx-menu')) setMenu(null); };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null);
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', esc);
+    return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', esc); };
+  }, [menu]);
 
   return (
     <div className="pixel-floor" ref={ref}>
@@ -152,7 +172,7 @@ export function TilemapFloor({
               key={a.id}
               className={`agent seated ${a.activity === 'waiting' || a.activity === 'blocked' ? 'attn' : ''}`}
               style={{ left, top, transform: `translate(-50%, -100%) scale(${dim.s})`, transformOrigin: 'center bottom', zIndex: Math.round(seat.y) + 500 }}
-              onClick={() => onSelect(a)}
+              onClick={(e) => { e.stopPropagation(); setMenu({ a, x: e.clientX, y: e.clientY }); }}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(a)}
@@ -169,6 +189,17 @@ export function TilemapFloor({
           );
         })}
       </div>
+      {menu && (
+        <div className="ctx-menu" style={{ left: menu.x, top: menu.y }}>
+          <div className="ctx-head">{menu.a.name}</div>
+          {MENU_ITEMS.map((label) => (
+            <button key={label} onClick={() => { onSelect(menu.a); setMenu(null); }}>
+              {label}
+            </button>
+          ))}
+          <button className="ctx-cancel" onClick={() => setMenu(null)}>Cancel</button>
+        </div>
+      )}
     </div>
   );
 }
