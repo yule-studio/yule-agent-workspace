@@ -1,44 +1,20 @@
 'use client';
 import { useState } from 'react';
 import { useAgents } from '@/lib/live';
-import { ConnectionDot } from '@/components/Nav';
 import { SessionPanel } from '@/components/SessionPanel';
 import { StateBadge } from '@/components/StateBadge';
 import { OfficeMap } from '@/office/OfficeMap';
 import { AGENT_ROLE_LABEL, type AgentView } from '@yule/shared-types';
-
-const LEGEND: { label: string; state: string }[] = [
-  { label: 'coding', state: 'executing' },
-  { label: 'planning', state: 'planning' },
-  { label: 'review', state: 'reviewing' },
-  { label: 'needs you', state: 'awaiting_approval' },
-  { label: 'blocked', state: 'blocked' },
-];
 
 export default function Office() {
   const [selected, setSelected] = useState<AgentView | null>(null);
   const { data } = useAgents();
   const agents = data?.agents ?? [];
   const meetings = data?.meetings ?? [];
-  const busy = agents.filter((a) => a.activity !== 'idle').length;
 
   return (
-    <div>
-      <div className="office-topbar">
-        <h2 style={{ margin: 0, fontSize: 21 }}>Pixel Office</h2>
-        <span className="muted small">
-          {agents.length} agents · {busy} active · {meetings.length} meeting
-        </span>
-        <div className="office-legend">
-          {LEGEND.map((l) => (
-            <span key={l.state}>
-              <i style={{ background: `var(--s-${l.state})` }} /> {l.label}
-            </span>
-          ))}
-        </div>
-        <ConnectionDot />
-      </div>
-
+    // break out of the constrained .main so the building/map is the hero
+    <div style={{ margin: '-22px -26px' }}>
       <OfficeMap agents={agents} meetings={meetings} onSelect={setSelected} />
 
       {selected && (
@@ -59,7 +35,7 @@ export default function Office() {
             <SessionPanel sessionId={selected.currentSessionId} compact />
           ) : (
             <p className="muted small">
-              {selected.statusLine ?? 'Idle — no active session. This agent is available for work.'}
+              {selected.statusLine ?? 'Idle — available for work. Assign a task and this agent spins up a session.'}
             </p>
           )}
         </div>
