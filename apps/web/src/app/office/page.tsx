@@ -13,8 +13,7 @@ export default function Office() {
   const meetings = data?.meetings ?? [];
 
   return (
-    // break out of the constrained .main so the building/map is the hero
-    <div style={{ margin: '-22px -26px' }}>
+    <>
       <OfficeMap agents={agents} meetings={meetings} onSelect={setSelected} />
 
       {selected && (
@@ -40,6 +39,6 @@ export default function Office() {
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }

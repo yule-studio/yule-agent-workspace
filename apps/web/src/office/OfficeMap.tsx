@@ -1,14 +1,15 @@
 'use client';
 /**
- * Yule HQ shell: switches between the Building overview and a detailed Floor
- * view, with a floating floor selector + a "follow active" mode that jumps to
- * the busiest floor. The map is the hero; controls float over it.
+ * Yule HQ shell — fills the viewport: a floating HUD (Building/Floor + floor
+ * navigator + follow), the building facade or a floor scene as the hero stage,
+ * and a right inspector. The building/map is the focus, not chrome.
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { AgentView, MeetingView } from '@yule/shared-types';
-import { BuildingView } from './BuildingView.js';
+import { BuildingFacade } from './BuildingFacade.js';
 import { FloorView } from './FloorView.js';
-import { buildBuilding, busiestFloorId } from './org.js';
+import { Inspector } from './Inspector.js';
+import { buildBuilding, busiestFloorId, type Floor } from './org.js';
 
 export function OfficeMap({
   agents,
@@ -23,16 +24,13 @@ export function OfficeMap({
   const [view, setView] = useState<'building' | 'floor'>('building');
   const [floorId, setFloorId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
+  const [hoverFloor, setHoverFloor] = useState<Floor | null>(null);
 
-  // default + keep selection valid as floors change
   useEffect(() => {
     if (building.floors.length === 0) return;
-    if (!floorId || !building.floors.some((f) => f.id === floorId)) {
-      setFloorId(building.floors[0]!.id);
-    }
+    if (!floorId || !building.floors.some((f) => f.id === floorId)) setFloorId(building.floors[0]!.id);
   }, [building, floorId]);
 
-  // follow-active: track the busiest floor
   useEffect(() => {
     if (!follow) return;
     const id = busiestFloorId(building);
@@ -43,15 +41,16 @@ export function OfficeMap({
   }, [follow, building]);
 
   const floor = building.floors.find((f) => f.id === floorId) ?? building.floors[0] ?? null;
+  const inspectFloor = view === 'building' ? (hoverFloor ?? floor) : floor;
 
-  function enter(id: string) {
+  const enter = (id: string) => {
     setFloorId(id);
     setView('floor');
-  }
+  };
 
   return (
-    <div className="hq">
-      <div className="hq-controls">
+    <div className="hq-root">
+      <div className="hq-hud">
         <div className="seg">
           <button className={view === 'building' ? 'on' : ''} onClick={() => setView('building')}>
             Building
@@ -60,7 +59,6 @@ export function OfficeMap({
             Floor
           </button>
         </div>
-
         {view === 'floor' && (
           <div className="floor-tabs">
             {building.floors.map((f) => (
@@ -71,23 +69,33 @@ export function OfficeMap({
                 style={f.id === floorId ? { borderColor: f.accent, color: f.accent } : undefined}
               >
                 {f.name}
-                <i className="ft-count">{f.activeCount}</i>
+                {f.activeCount > 0 && <i className="ft-count">{f.activeCount}</i>}
               </button>
             ))}
           </div>
         )}
-
         <label className={`follow ${follow ? 'on' : ''}`}>
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
           Follow active
         </label>
       </div>
 
-      {view === 'building' || !floor ? (
-        <BuildingView building={building} onEnter={enter} />
-      ) : (
-        <FloorView floor={floor} meetings={meetings} onSelect={onSelect} />
-      )}
+      <div className="hq-body">
+        <div className="hq-stage">
+          {view === 'building' || !floor ? (
+            <BuildingFacade
+              building={building}
+              selectedId={floorId}
+              meetings={meetings}
+              onEnter={enter}
+              onHover={setHoverFloor}
+            />
+          ) : (
+            <FloorView floor={floor} meetings={meetings} onSelect={onSelect} />
+          )}
+        </div>
+        <Inspector building={building} floor={inspectFloor} onEnter={enter} />
+      </div>
     </div>
   );
 }
