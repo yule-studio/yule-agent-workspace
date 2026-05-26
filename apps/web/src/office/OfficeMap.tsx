@@ -10,6 +10,7 @@ import { BuildingFacade } from './BuildingFacade.js';
 import { FloorView } from './FloorView.js';
 import { Inspector } from './Inspector.js';
 import { buildBuilding, busiestFloorId, type Floor } from './org.js';
+import { useKst } from './useKst.js';
 
 export function OfficeMap({
   agents,
@@ -21,6 +22,7 @@ export function OfficeMap({
   onSelect: (a: AgentView) => void;
 }) {
   const building = useMemo(() => buildBuilding(agents), [agents]);
+  const kst = useKst();
   const [view, setView] = useState<'building' | 'floor'>('building');
   const [floorId, setFloorId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
@@ -74,6 +76,10 @@ export function OfficeMap({
             ))}
           </div>
         )}
+        <div className={`kst-chip phase-${kst.phase}`}>
+          <span className="kst-orb" />
+          KST {kst.time} · {kst.shift}
+        </div>
         <label className={`follow ${follow ? 'on' : ''}`}>
           <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
           Follow active
@@ -87,6 +93,7 @@ export function OfficeMap({
               building={building}
               selectedId={floorId}
               meetings={meetings}
+              phase={kst.phase}
               onEnter={enter}
               onHover={setHoverFloor}
             />

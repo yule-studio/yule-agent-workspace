@@ -45,19 +45,30 @@ const C = {
   exec: '#b59bd1',
 };
 
+const SKIES: Record<string, [string, string]> = {
+  day: ['#2b3650', '#46577a'],
+  dawn: ['#2a2742', '#4b4570'],
+  dusk: ['#2c2440', '#553a55'],
+  night: ['#0c0f17', '#171b27'],
+};
+
 export function BuildingFacade({
   building,
   selectedId,
   meetings,
+  phase,
   onEnter,
   onHover,
 }: {
   building: Building;
   selectedId: string | null;
   meetings: MeetingView[];
+  phase: 'dawn' | 'day' | 'dusk' | 'night';
   onEnter: (id: string) => void;
   onHover: (f: Floor | null) => void;
 }) {
+  const sky = SKIES[phase] ?? SKIES.day!;
+  const night = phase === 'night' || phase === 'dusk';
   const [hover, setHover] = useState<string | null>(null);
   const floors = building.floors;
   const H = SKY + ROOF + floors.length * FH + LOBBY + GROUND;
@@ -76,24 +87,41 @@ export function BuildingFacade({
         shapeRendering="crispEdges"
         preserveAspectRatio="xMidYMid meet"
       >
-        {/* sky + stars */}
+        {/* sky — shifts with KST phase */}
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#1a2027" />
-            <stop offset="1" stopColor="#20272e" />
+            <stop offset="0" stopColor={sky[0]} />
+            <stop offset="1" stopColor={sky[1]} />
           </linearGradient>
         </defs>
         <rect x="0" y="0" width={W} height={H} fill="url(#sky)" />
-        {[
-          [30, 40],
-          [420, 60],
-          [60, 150],
-          [440, 230],
-          [20, 360],
-          [450, 420],
-        ].map(([x, y], k) => (
-          <rect key={k} x={x} y={y} width="2" height="2" fill="#3a444d" />
-        ))}
+
+        {/* sun (day/dawn) or moon (dusk/night) top-left of the sky */}
+        {!night ? (
+          <g>
+            <circle cx="58" cy="64" r="16" fill={phase === 'dawn' ? '#cabfff' : '#e6ecf2'} opacity="0.9" />
+            <circle cx="58" cy="64" r="22" fill={phase === 'dawn' ? '#a99cff' : '#cdd6e2'} opacity="0.18" />
+          </g>
+        ) : (
+          <g>
+            <circle cx="58" cy="62" r="14" fill="#d3dae8" opacity="0.92" />
+            <circle cx="52" cy="58" r="5" fill={sky[0]} opacity="0.9" />
+          </g>
+        )}
+        {/* stars (dusk/night) */}
+        {night &&
+          [
+            [30, 40],
+            [410, 50],
+            [120, 110],
+            [440, 200],
+            [24, 300],
+            [450, 360],
+            [90, 220],
+            [430, 430],
+          ].map(([x, y], k) => (
+            <rect key={k} x={x} y={y} width="2" height="2" fill="#cdd6e2" opacity={0.5 + (k % 3) * 0.15} />
+          ))}
 
         {/* building body */}
         <rect x={BX} y={SKY + ROOF} width={BW} height={floors.length * FH + LOBBY} fill={C.wallA} />
@@ -152,7 +180,7 @@ export function BuildingFacade({
               )}
 
               {/* windows row with interior */}
-              <FloorWindows floor={f} y={y} exec={isExec} />
+              <FloorWindows floor={f} y={y} exec={isExec} night={night} />
 
               {/* floor sign (etched plate, not a card) */}
               <rect x={BX + 12} y={y + FH - 22} width={signWidth(f.name)} height="15" fill={C.signPlate} opacity="0.9" />
@@ -206,12 +234,14 @@ function signWidth(name: string): number {
 }
 
 /** Windows for one floor — glass, desk silhouette inside, agent dots (lit if active). */
-function FloorWindows({ floor, y, exec }: { floor: Floor; y: number; exec: boolean }) {
+function FloorWindows({ floor, y, exec, night }: { floor: Floor; y: number; exec: boolean; night: boolean }) {
   const count = exec ? 3 : 6;
   const slotW = WIN_AREA / count;
   const winW = slotW - 12;
   const winH = exec ? 50 : 42;
   const wy = y + 14;
+  // unlit window glass: darker at night so lit ones pop; lighter (daylight) by day
+  const unlit = night ? '#141923' : floor.agents.length ? '#34414e' : '#2b3641';
   // distribute agents across windows
   const perWin: AgentView[][] = Array.from({ length: count }, () => []);
   floor.agents.forEach((a, idx) => perWin[idx % count]!.push(a));
@@ -222,7 +252,7 @@ function FloorWindows({ floor, y, exec }: { floor: Floor; y: number; exec: boole
         const wx = WIN_X + w * slotW + 6;
         const occupants = perWin[w]!;
         const lit = occupants.find((a) => a.activity !== 'idle');
-        const glass = lit ? `var(--s-${lit.state ?? 'executing'})` : floor.agents.length ? C.glassDim : C.glass;
+        const glass = lit ? `var(--s-${lit.state ?? 'executing'})` : unlit;
         return (
           <g key={w}>
             {/* frame */}
