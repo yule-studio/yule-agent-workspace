@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgentView } from '@yule/shared-types';
 import { Character } from './Character.js';
 import type { Floor } from './org.js';
-import { drawTilemap, loadOffice, mapPixelSize, readSeats, type SeatSlot, type TiledMap } from './tilemap.js';
+import { drawTile, drawTilemap, loadOffice, mapPixelSize, readAccents, readSeats, type SeatSlot, type TiledMap, type TileIndex } from './tilemap.js';
 
 function bubbleFor(a: AgentView): { text: string; cls: string } | null {
   switch (a.activity) {
@@ -28,6 +28,21 @@ function bubbleFor(a: AgentView): { text: string; cls: string } | null {
 }
 
 const isLead = (a: AgentView) => a.kind === 'department' || /lead|coordinator|principal|head/i.test(a.title);
+
+/** The direction an agent should face — its seat's `facing` metadata (toward its desk). */
+function faceOf(seat: SeatSlot): 'up' | 'down' | 'left' | 'right' {
+  return seat.facing === 'down' || seat.facing === 'left' || seat.facing === 'right' ? seat.facing : 'up';
+}
+
+/** Floor-type-specific decorative tiles drawn into the reserved accent slots. */
+function accentTiles(name: string): string[] {
+  const n = name.toLowerCase();
+  if (n.includes('engineering')) return ['server', 'rack', 'box', 'server', 'clutter', 'server'];
+  if (n.includes('ai') || n.includes('product')) return ['corkboard', 'postits', 'docs', 'whiteboard_l', 'postits', 'docs'];
+  if (n.includes('growth') || n.includes('sales')) return ['board_kanban', 'docs', 'postits', 'poster', 'sidetable', 'docs'];
+  if (n.includes('platform') || n.includes('ops') || n.includes('operation')) return ['rack', 'cabinet', 'box', 'server', 'trash', 'cabinet'];
+  return ['plant_b', 'bookshelf_t', 'docs', 'sidetable', 'plant_s', 'cabinet'];
+}
 
 /** Allocate agents to seats: lead → office, meeting agents → meeting room, rest → desks. */
 function allocate(agents: AgentView[], seats: SeatSlot[]): { agent: AgentView; seat: SeatSlot }[] {
@@ -68,28 +83,41 @@ export function TilemapFloor({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [asset, setAsset] = useState<{ map: TiledMap; seats: SeatSlot[]; native: { w: number; h: number } } | null>(null);
+  const [asset, setAsset] = useState<{
+    map: TiledMap;
+    image: HTMLImageElement;
+    tiles: TileIndex;
+    seats: SeatSlot[];
+    accents: { x: number; y: number }[];
+    native: { w: number; h: number };
+  } | null>(null);
   const [dim, setDim] = useState<{ w: number; h: number; s: number }>({ w: 960, h: 608, s: 1 });
 
-  // load map + tileset, paint the canvas once ready
+  // load map + tileset + tile index once
   useEffect(() => {
     let alive = true;
-    loadOffice().then(({ map, image }) => {
+    loadOffice().then(({ map, image, tiles }) => {
       if (!alive) return;
-      const cv = canvasRef.current;
-      const native = mapPixelSize(map);
-      if (cv) {
-        cv.width = native.w;
-        cv.height = native.h;
-        const ctx = cv.getContext('2d');
-        if (ctx) drawTilemap(ctx, map, image);
-      }
-      setAsset({ map, seats: readSeats(map), native });
+      setAsset({ map, image, tiles, seats: readSeats(map), accents: readAccents(map), native: mapPixelSize(map) });
     });
     return () => {
       alive = false;
     };
   }, []);
+
+  // paint the canvas: base tilemap + per-floor decorative accents (repaint on floor change)
+  useEffect(() => {
+    if (!asset) return;
+    const cv = canvasRef.current;
+    if (!cv) return;
+    cv.width = asset.native.w;
+    cv.height = asset.native.h;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    drawTilemap(ctx, asset.map, asset.image);
+    const tints = accentTiles(floor.name);
+    asset.accents.forEach((a, i) => drawTile(ctx, asset.image, asset.tiles, tints[i % tints.length]!, a.x - asset.tiles.tile / 2, a.y - asset.tiles.tile / 2));
+  }, [asset, floor]);
 
   // fit-to-container
   useEffect(() => {
@@ -112,8 +140,11 @@ export function TilemapFloor({
       <div className="pf-stage" style={{ width: dim.w, height: dim.h }}>
         <canvas ref={canvasRef} style={{ width: dim.w, height: dim.h, imageRendering: 'pixelated' }} />
         {placed.map(({ agent: a, seat }) => {
+          const fy = faceOf(seat);
           const left = seat.x * dim.s;
-          const top = (seat.y + 6) * dim.s;
+          // down-facing agents sit below the seat point so the body lands on the
+          // chair (not the desk/wall above); others keep the bottom anchor.
+          const top = (seat.y + (fy === 'down' ? 26 : 6)) * dim.s;
           const bubble = bubbleFor(a);
           const working = a.activity === 'coding' || a.activity === 'running';
           return (
@@ -128,7 +159,7 @@ export function TilemapFloor({
               title={`${a.name} · ${a.activity}`}
             >
               {bubble && <div className={`pixel-bubble ${bubble.cls}`}>{bubble.text}</div>}
-              <Character seed={a.avatarSeed} activity={a.activity} walking={false} seated />
+              <Character seed={a.avatarSeed} activity={a.activity} walking={false} seated facing={fy} />
               {working && <span className="live-dot" />}
               <div className="nameplate">
                 <span className="np-dot" style={{ background: a.state ? `var(--s-${a.state})` : '#5b636d' }} />
