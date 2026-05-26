@@ -26,7 +26,16 @@ export type PropKind =
   | 'trash'
   | 'postits'
   | 'desk-small'
-  | 'rug';
+  | 'rug'
+  // tech lead office + support spaces
+  | 'chair'
+  | 'exec-desk'
+  | 'meeting-table'
+  | 'lamp'
+  | 'status-light'
+  | 'wall-note'
+  | 'roadmap'
+  | 'door';
 
 export interface XY {
   x: number;
@@ -40,6 +49,16 @@ export interface DeskSlot {
 }
 export interface Seat extends XY {
   agentId: string;
+}
+/**
+ * A reserved seat / placement slot in the office layout. Furniture is always
+ * drawn here; an agent is only rendered when `agentId` is set. This is the
+ * structural hook for future Tech-Lead / Assistant / visitor agents — the
+ * layout is ready before the agents exist.
+ */
+export interface Placement extends XY {
+  kind: 'tech-lead' | 'assistant' | 'visitor' | 'review' | 'member';
+  agentId: string | null;
 }
 export interface PropItem {
   kind: PropKind;
@@ -70,6 +89,7 @@ export interface FloorMap {
   props: PropItem[];
   rooms: Room[];
   walls: Wall[]; // interior partitions (perimeter drawn separately)
+  placements: Placement[]; // reserved seats (tech-lead / assistant / visitor / review)
   accent: string;
 }
 
@@ -213,5 +233,5 @@ export function buildExecMap(floor: Floor): FloorMap {
     { kind: 'whiteboard', x: ART.w - ART.wall - 150, y: 30, w: 90 },
     { kind: 'printer', x: ART.w - ART.wall - 60, y: 150 },
   ];
-  return { desks: [], seats, props, rooms: [], walls: [], accent: floor.accent };
+  return { desks: [], seats, props, rooms: [], walls: [], placements: [], accent: floor.accent };
 }
