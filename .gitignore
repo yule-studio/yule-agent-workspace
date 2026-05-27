@@ -30,3 +30,13 @@ npm-debug.log*
 tmp-atlas-debug/
 tmp-lab-preview.png
 tmp-floorplan-trace.png
+
+# legacy source references — keep locally for comparison, never commit
+assets-src/yule-workspace-motion/references/deprecated/
+assets-src/yule-workspace-motion/references/agent-motion-*.png
+assets-src/yule-workspace-motion/references/desk-ai-engineer-backend-devops.png
+assets-src/yule-workspace-motion/references/desk-analyst-product-designer.png
+assets-src/yule-workspace-motion/references/door-motion.png
+assets-src/yule-workspace-motion/references/interior-props-boards-plants-watercooler-*.png
+assets-src/yule-workspace-motion/references/monitor-motion.png
+assets-src/yule-workspace-motion/references/seated-desk-motion*.png

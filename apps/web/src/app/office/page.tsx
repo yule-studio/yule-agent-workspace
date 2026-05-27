@@ -51,6 +51,21 @@ export default function Office() {
   // close any open agent menu/drawer when switching Floor ↔ Building
   useEffect(() => { setMenu(null); setDetailId(null); }, [view]);
 
+  // Enter toggles Floor ↔ Building (consistent both ways — Building→Floor was
+  // click-only; Floor only reacted via a focused HUD button by accident).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (document.querySelector('.lab-menu, .lab-drawer')) return; // don't yank the view mid-inspect
+      e.preventDefault();
+      setView((v) => (v === 'building' ? 'floor' : 'building'));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // follow: keep the camera on the most urgent active agent
   useEffect(() => {
     if (!follow) return;
@@ -74,8 +89,8 @@ export default function Office() {
       <div className={`lab-hud phase-${phase}`}>
         <a className="home" href="/" title="Dashboard" aria-label="Dashboard">⌂</a>
         <span className="seg">
-          <button className={view === 'floor' ? 'on' : ''} onClick={() => setView('floor')}>Floor</button>
-          <button className={view === 'building' ? 'on' : ''} onClick={() => setView('building')}>Building</button>
+          <button className={view === 'floor' ? 'on' : ''} onClick={(e) => { setView('floor'); e.currentTarget.blur(); }}>Floor</button>
+          <button className={view === 'building' ? 'on' : ''} onClick={(e) => { setView('building'); e.currentTarget.blur(); }}>Building</button>
         </span>
         <span className="sep" />
         <span className="chip" title={`KST ${kst.time} · ${kst.shift}`}>
