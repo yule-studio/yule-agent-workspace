@@ -57,6 +57,32 @@ function zoneForActivity(a: AgentView): string | null {
   }
 }
 
+type Bubble = { text: string; tone: 'urgent' | 'warn' | 'talk' | 'work' | 'idle' } | null;
+const AMBIENT = ['☕', '…', '🎧', '💭'];
+/** A speech bubble for the activity — most agents stay silent (no idle spam). */
+function bubbleFor(a: AgentView): Bubble {
+  switch (a.activity) {
+    case 'blocked': return { text: 'Blocked — need a hand', tone: 'urgent' };
+    case 'waiting': return { text: 'Awaiting approval', tone: 'warn' };
+    case 'meeting': return { text: a.currentTaskTitle ? 'Standup' : 'Syncing…', tone: 'talk' };
+    case 'reviewing': return { text: 'Reviewing PR…', tone: 'work' };
+    case 'running': return { text: 'Running tests…', tone: 'work' };
+    case 'planning': return { text: 'Planning…', tone: 'talk' };
+    case 'coding': return { text: 'Writing code…', tone: 'work' };
+    case 'idle':
+      // sparse ambient — deterministic per agent so it isn't noisy
+      return a.avatarSeed % 5 === 0 ? { text: AMBIENT[a.avatarSeed % AMBIENT.length], tone: 'idle' } : null;
+    default: return null; // reading / done → quiet
+  }
+}
+const TONE: Record<string, { bg: string; fg: string }> = {
+  urgent: { bg: '#b5403f', fg: '#fff4f4' },
+  warn: { bg: '#b98326', fg: '#fff8ec' },
+  talk: { bg: '#2c3340', fg: '#dfe6f2' },
+  work: { bg: '#1f6f5c', fg: '#eafff7' },
+  idle: { bg: '#2a2e36', fg: '#cdd3dd' },
+};
+
 export function makeLabScene(Phaser: typeof import('phaser')) {
   return class LabScene extends Phaser.Scene {
     cb: SceneCallbacks = {};
@@ -192,27 +218,44 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       }
     }
 
-    targetFor(a: AgentView): { x: number; y: number; facing: 'up' | 'down' } {
+    targetFor(a: AgentView): { x: number; y: number; facing: 'up' | 'down'; seated: boolean } {
       const zone = zoneForActivity(a);
       if (zone && this.pois[zone]) {
-        // spread agents around the poi centre deterministically
+        // gather around the poi centre deterministically (standing, not seated)
         const idx = [...this.assigned.keys()].indexOf(a.id);
         const p = this.pois[zone];
         const cols = Math.max(1, Math.floor(p.w / 60));
         const gx = (idx % cols) - (cols - 1) / 2;
         const gy = Math.floor(idx / cols) % 2;
-        return { x: p.cx + gx * 46, y: p.cy + gy * 40, facing: 'down' };
+        return { x: p.cx + gx * 46, y: p.cy + gy * 40, facing: 'down', seated: false };
       }
       const seat = this.assigned.get(a.id);
-      if (seat) return { x: seat.x, y: seat.y, facing: seat.facing };
-      return { x: this.pois['lounge']?.cx ?? 880, y: this.pois['lounge']?.cy ?? 640, facing: 'down' };
+      if (seat) return { x: seat.x, y: seat.y, facing: seat.facing, seated: true };
+      return { x: this.pois['lounge']?.cx ?? 880, y: this.pois['lounge']?.cy ?? 640, facing: 'down', seated: false };
+    }
+
+    setBubble(c: any, b: Bubble) {
+      let t = c.getData('bubble');
+      if (!b) { if (t) { t.destroy(); c.setData('bubble', null); } return; }
+      const tone = TONE[b.tone];
+      if (!t) {
+        t = this.add.text(c.x, c.y, b.text, {
+          fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: tone.fg,
+          backgroundColor: tone.bg, padding: { x: 6, y: 3 }, align: 'center',
+        }).setOrigin(0.5, 1).setDepth(1e6);
+        c.setData('bubble', t);
+      }
+      if (t.text !== b.text) t.setText(b.text);
+      t.setColor(tone.fg);
+      t.setBackgroundColor(tone.bg);
+      t.setData('urgent', b.tone === 'urgent');
     }
 
     syncAgents(agents: AgentView[]) {
       this.agents = agents;
       this.allocate(agents);
       const alive = new Set(agents.map((a) => a.id));
-      for (const [id, c] of this.sprites) if (!alive.has(id)) { c.destroy(); this.sprites.delete(id); }
+      for (const [id, c] of this.sprites) if (!alive.has(id)) { this.disposeAgent(c); this.sprites.delete(id); }
 
       for (const a of agents) {
         const skin = `skin${String(a.avatarSeed % SKINS).padStart(2, '0')}`;
@@ -232,11 +275,26 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
         c.setData('skin', skin);
         c.setData('target', tgt);
         c.setData('activity', a.activity);
+        this.setBubble(c, bubbleFor(a));
+        // "screen on" glow for agents actively working at a desk
+        const working = (a.activity === 'coding' || a.activity === 'running' || a.activity === 'reading') && tgt.seated;
+        let g = c.getData('glow');
+        if (working && !g) {
+          g = this.add.ellipse(tgt.x, tgt.y - 14, 30, 14, 0x6cd0ff, 0.5).setDepth(tgt.y - 1).setBlendMode(Phaser.BlendModes.ADD);
+          c.setData('glow', g);
+        } else if (!working && g) { g.destroy(); c.setData('glow', null); }
       }
     }
 
-    update(_t: number, dt: number) {
+    disposeAgent(c: any) {
+      c.getData('bubble')?.destroy();
+      c.getData('glow')?.destroy();
+      c.destroy();
+    }
+
+    update(t: number, dt: number) {
       const speed = 0.12 * dt; // px per frame
+      const bubbleScale = Phaser.Math.Clamp(1 / this.cameras.main.zoom, 0.7, 1.6);
       for (const [, c] of this.sprites) {
         const tgt = c.getData('target');
         if (!tgt) continue;
@@ -250,9 +308,22 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
           c.setDepth(c.y);
           if (Math.abs(dx) > 1) c.setFlipX(dx < 0);
           if (c.anims.getName() !== `walk_${skin}`) c.play(`walk_${skin}`);
-        } else {
-          if (c.anims.isPlaying) { c.anims.stop(); c.setFrame(`${skin}_idle`); }
+        } else if (c.anims.isPlaying || c.getData('settled') !== tgt) {
+          c.anims.stop();
+          c.setFlipX(false);
+          c.setFrame(`${skin}_${tgt.seated ? 'sit' : 'idle'}`);
+          c.setDepth(c.y);
+          c.setData('settled', tgt);
         }
+        // bubble floats above the head, readable across zoom
+        const bub = c.getData('bubble');
+        if (bub) {
+          const urgent = bub.getData('urgent');
+          const bob = urgent ? Math.sin(t / 180) * 3 : 0;
+          bub.setPosition(c.x, c.y - c.displayHeight - 4 + bob).setScale(bubbleScale);
+        }
+        const glow = c.getData('glow');
+        if (glow) { glow.setPosition(c.x, c.y - 22); glow.setAlpha(0.32 + 0.22 * (0.5 + 0.5 * Math.sin(t / 260))); }
       }
     }
   };
