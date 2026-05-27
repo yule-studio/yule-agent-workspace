@@ -4,32 +4,27 @@ These images are source references for the Yule Agent Office redesign. They are
 not final runtime sprites yet. Claude Code should crop, clean, atlas, and map
 them into runtime assets under `apps/web/public/assets/yule-office/`.
 
-## Latest Update
+## Canonical Layout Source
 
-The files below were added from `~/Documents/yule-workspace-motion2` and should
-be treated as the newest visual source for the next implementation pass:
+Use only this file as the canonical office/building layout source:
 
-- `references/building-facade.png`
-  - Updated building/facade source. This replaces the previous
-    `building-facade.png`.
 - `references/office-shell-floorplan-v2.png`
-  - Misnamed intermediate copy of the updated building/facade source. Do not use
-    this as the interior floorplan reference.
-- `references/door-motion.png`
-  - Door/open-close motion sheet for room transitions and office entry points.
-- `references/seated-desk-motion-01.png` through
-  `references/seated-desk-motion-04.png`
-  - Updated seated-at-desk motion references. Prefer these over the older
-    `seated-desk-motion.png`.
+  - This is the selected source of truth.
+  - Use it for the new single-floor Yule Agent Lab composition.
+  - Do not choose between multiple shell/facade files anymore.
 
-## Files
+The older/confusing alternatives have been moved out of the active references:
 
-- `references/office-shell-floorplan.png`
-  - Current one-floor office shell reference for the interior map.
+- `references/deprecated/building-facade-deprecated.png`
+- `references/deprecated/office-shell-floorplan-deprecated.png`
+
+These deprecated files are kept only for historical comparison. Do not use them
+for the implementation.
+
+## Active Reference Files
+
 - `references/office-shell-floorplan-v2.png`
-  - Misnamed intermediate copy of the updated building/facade source. Prefer
-    `building-facade.png` for exterior/facade work and
-    `office-shell-floorplan.png` for the interior map.
+  - Canonical map/building layout source.
 - `references/desk-ai-engineer-backend-devops.png`
   - Desk source sheet for AI engineer, backend/devops workstations, front/back
     views, and chairs.
@@ -70,9 +65,6 @@ be treated as the newest visual source for the next implementation pass:
   - Clear weather sky/cloud/light elements.
 - `references/weather-rain-snow-cloud-elements.png`
   - Cloud, rain, snow, puddle, sparkle overlays.
-- `references/building-facade.png`
-  - Current exterior building/facade reference. This has been replaced with the
-    newly added source from `yule-workspace-motion2`.
 - `references/exterior-street-props.png`
   - Street lights, poles, traffic/exterior props.
 

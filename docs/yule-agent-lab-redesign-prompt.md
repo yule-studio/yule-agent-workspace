@@ -1,430 +1,329 @@
-# Claude Code Prompt: Rebuild Pixel Office As A Single-Floor Game UI
+# Claude Code Prompt: Rebuild Pixel Office From `office-shell-floorplan-v2`
 
-We are changing direction. Pixel Office should no longer feel like an operations
-dashboard with a pixel background. It should become a playable, game-like
-single-floor AI agent workspace.
+Pixel Office 방향을 다시 고정합니다.
 
-Use the source images in:
-
-```txt
-assets-src/yule-workspace-motion/references/
-```
-
-Important: assets from `yule-workspace-motion2` have been copied into that
-folder and should be treated as the latest design source. In particular,
-`building-facade.png`, `door-motion.png`, and `seated-desk-motion-01.png`
-through `seated-desk-motion-04.png` override the older first-pass references
-where they overlap.
-
-Note: `office-shell-floorplan-v2.png` was a misnamed intermediate copy of the
-updated building/facade source. Do not use it as the interior floorplan
-reference. Use `building-facade.png` for exterior/facade work and
-`office-shell-floorplan.png` for the interior office map unless a separate
-newer floorplan is provided.
-
-Treat these images as source references/sprite sheets. Do not render the whole
-reference sheets directly in the UI. Extract/crop/clean runtime sprites and map
-assets into:
+이전 정책, 이전 building/floor 구조, 이전 sidebar/dashboard UI, 이전
+랜덤 배치 방식은 모두 버리고 새로 구성해 주세요. 이번 기준 이미지는
+하나입니다.
 
 ```txt
-apps/web/public/assets/yule-office/
-apps/web/public/vendor/yule-office/
+assets-src/yule-workspace-motion/references/office-shell-floorplan-v2.png
 ```
 
-## Core Direction
+`building-facade.png`, `office-shell-floorplan.png`,
+`office-shell-floorplan-v2.png` 중 더 이상 선택하지 않습니다.
+`office-shell-floorplan-v2.png`가 단일 source of truth입니다.
 
-Replace the current multi-floor/building-driven Pixel Office experience with one
-high-quality floor: `Yule Agent Lab`.
-
-The user should feel like they are looking at a living game map where AI agents
-work, walk, sit, review, wait for approval, and talk. Remove the dashboard/chart
-mindset from the Office screen.
-
-Do not keep the previous structure where the user switches between many floors
-and sees large inspector/dashboard panels. One dense, well-designed floor is the
-primary experience.
-
-## Reference Assets
-
-Use these source files:
-
-- `office-shell-floorplan.png`
-  - Main single-floor interior layout reference.
-  - Use it to build a proper Tiled map with rooms, walls, doors, corridors, and
-    floor material changes.
-- `office-shell-floorplan-v2.png`
-  - Misnamed intermediate copy of the updated building/facade source.
-  - Do not use this as the interior floorplan reference.
-- `building-facade.png`
-  - Current building/facade source.
-  - This has been replaced by the newly added image from
-    `yule-workspace-motion2`.
-  - If the building/exterior view is kept, use this file rather than the older
-    facade.
-- `door-motion.png`
-  - Extract door sprites and open/close frames.
-  - Use these for office entry, room doors, tech lead office, meeting/review
-    room, and any agent transition through a doorway.
-- `desk-ai-engineer-backend-devops.png`
-  - Extract AI engineer, backend, devops workstation variants.
-  - Must preserve front/back desk direction, monitor backs, cables, legs, desk
-    depth, and chair variants.
-- `desk-analyst-product-designer.png`
-  - Extract analyst, product, designer workstation variants.
-  - Use for product/design/growth desks.
-- `interior-props-boards-plants-watercooler-01.png`
-  - Extract whiteboards, charts, shelves, plants, water cooler, globe.
-- `interior-props-boards-plants-watercooler-02.png`
-  - Extract additional interior props.
-- `agent-motion-01.png` through `agent-motion-04.png`
-  - Extract agent sprites, idle poses, walk poses, phone/tablet/coffee poses.
-- `seated-desk-motion-01.png` through `seated-desk-motion-04.png`
-  - Extract the latest seated desk poses and desk-working motion frames.
-  - These are now preferred over `seated-desk-motion.png`.
-  - Use them when an agent is working/coding/reading at a workstation.
-- `seated-desk-motion.png`
-  - Older seated desk pose sheet. Use only if a needed pose is missing from the
-    new four sheets.
-- `monitor-motion.png`
-  - Extract monitor/screen animation variants.
-- `time-of-day-backgrounds.png`
-  - Use for KST-based exterior/window background mood.
-- `weather-clear-elements.png`
-  - Use clear-day/cloud/sparkle elements.
-- `weather-rain-snow-cloud-elements.png`
-  - Use rain/snow/cloud/puddle overlays.
-- `time-of-day-building.png`, `exterior-street-props.png`
-  - Optional exterior/building view assets, but the Office screen should focus
-    on the single interior floor first.
-
-## UX Reset
-
-On `/office`:
-
-- Default directly into the `Yule Agent Lab` floor.
-- Remove or hide the big building/floor selector as the primary UX.
-- Do not show chart cards, dashboard metrics, or large side panels by default.
-- Use a minimal game HUD:
-  - small top agent/status strip
-  - KST time/weather indicator
-  - small controls for follow active, zoom, and sound/motion if needed
-- Agent details should open on click as:
-  - compact context menu near the agent, or
-  - a lightweight drawer that does not cover the map too much.
-- Speech bubbles should appear above agents when they are talking, waiting,
-  blocked, reviewing, or returning to desk.
-
-The map is the product. UI chrome should not dominate.
-
-## Map Layout
-
-Use one dense floor, not multiple floors.
-
-Suggested layout using `office-shell-floorplan.png`:
-
-- Upper-left main work area:
-  - Engineering/AI desk pod.
-  - 6-10 desks using mixed workstation variants.
-  - Desks should face different directions correctly.
-  - Include front-facing and back-facing desk assets.
-- Lower-left focused office:
-  - Tech Lead Office / Human Approval Office.
-  - Add tech lead desk, assistant/visitor chair, small review board, plant,
-    document shelf, approval door/sign.
-- Upper-right planning/library room:
-  - Product/design/planning area with bookshelves, boards, globe, table,
-    whiteboard, roadmap chart.
-- Lower-right ops/review room:
-  - Server rack, CI/CD monitor, deploy board, review desk/table, printer/water
-    cooler.
-- Center corridor/common area:
-  - Movement path between rooms.
-  - Small standup/chat zone.
-  - Agents should be able to move between desk, review, meeting, and lounge.
-
-The floor must feel like a real office, not a tiled empty hall. If an area has
-large empty tiles, add intentional props, rugs, shelves, boards, plants, cables,
-paper stacks, or seating.
-
-Do not build the floor by repeating generic desk rows across a huge rectangle.
-Use the office shell image as the spatial source: room shapes, wall breaks, door
-positions, corridors, and smaller office zones should drive the Tiled map.
-The result should feel composed, not generated.
-
-## Agent Placement
-
-Use the live yule-studio-agent registry/source. Do not hardcode eight agents.
-
-Create a single-floor allocation model:
-
-- All agents exist on the same map.
-- Use role/title/capability/metadata to assign each agent to a zone and seat.
-- `metadata.zone`, `metadata.desk`, or `metadata.seat` should override automatic
-  placement when present.
-- Unknown agents go to a General Studio desk or overflow coworking desk.
-
-State behavior:
-
-- `coding` / `running` / `reading`
-  - agent sits at own desk
-  - monitor animation is active
-- `planning`
-  - agent moves to planning board or product area
-- `reviewing`
-  - agent moves to review table/board
-- `meeting`
-  - agents with same `groupId` gather at the same meeting/standup zone
-- `waiting` / `awaiting_approval`
-  - agent moves to Human Approval Office or shows a speech bubble at desk
-- `blocked`
-  - agent bubble becomes urgent and they may stand near Tech Lead Office
-- `idle`
-  - agent can remain at desk, lounge, shelf, or water cooler
-
-## Door And Room Transition Motion
-
-Use `door-motion.png` for real in-world transitions. Doors should not be static
-rectangles.
-
-Requirements:
-
-- Extract open/close frames into the runtime atlas.
-- Add door objects/POIs to the Tiled map.
-- When an agent enters or exits a room:
-  - walk to the door tile
-  - play the open animation
-  - pass through the doorway
-  - play the close animation
-- Door animation should respect depth sorting so the agent briefly appears
-  behind/in front of the door frame naturally.
-- Use door collision objects so agents do not walk through walls.
-- Tech Lead Office, meeting/review rooms, and entry points should use these
-  animated door sprites.
-
-If full pathfinding is not ready yet, implement a simple deterministic
-waypoint route through door POIs first.
-
-## Seated Work Motion
-
-Use `seated-desk-motion-01.png` through `seated-desk-motion-04.png` for desk
-work states. The current “standing sprite placed near a chair” look is not
-enough.
-
-Requirements:
-
-- Extract seated/front/back/side work poses where available.
-- When an agent is `coding`, `running`, `reading`, or doing focused work:
-  - snap or walk them to their assigned seat
-  - switch to the appropriate seated-at-desk animation
-  - align body, chair, desk, monitor, and keyboard as one believable
-    workstation scene
-- A seated agent should not look like they are standing on top of the desk or
-  floating behind it.
-- Seat orientation must match desk orientation:
-  - chair below desk: agent faces upward toward the desk/monitor, but monitor
-    front should face the chair/player side as designed by the source asset
-  - chair above desk: use the correct back-facing desk/monitor and seated pose
-  - side desks: use side-facing or nearest available seated pose
-- If a precise pose is missing, create a small derived sprite from the provided
-  motion sheet instead of reusing a generic standing character.
-
-## Desk Direction And Depth
-
-This is critical.
-
-Use front/back desk sprites correctly:
-
-- If the chair is below the desk, the monitor should face downward toward the
-  chair. The player may see the screen/front side.
-- If the chair is above the desk, the monitor should face upward away from the
-  player. Use the back view of the monitor/desk.
-- Do not rotate a front desk 180 degrees to fake the back view.
-- Use the actual back-facing desk source sprites from the desk sheets.
-- Chairs, desk legs, desk front lip, monitor stand, cables, and contact shadows
-  must align as one workstation object.
-
-Workstations should not look like flat UI rectangles. Each desk needs:
-
-- top surface
-- front lip / side edge
-- legs
-- monitor frame and stand
-- keyboard/mouse
-- papers/notes/cups/cables
-- chair
-- contact shadow
-
-Desk sprites should come from the source sheets or from cropped/cleaned derived
-sprites, not from CSS rectangles. The front/back relationship matters more than
-simple rotation. A desk facing the opposite direction needs a different sprite,
-not a 180-degree transform.
-
-## Sprite Extraction Requirements
-
-Create a runtime atlas/manifest with clear names, for example:
+혼선을 막기 위해 기존 두 파일은 deprecated로 옮겨져 있습니다.
 
 ```txt
-apps/web/public/assets/yule-office/atlas/office-objects.png
-apps/web/public/assets/yule-office/atlas/office-objects.json
-apps/web/public/assets/yule-office/atlas/agents.png
-apps/web/public/assets/yule-office/atlas/agents.json
+assets-src/yule-workspace-motion/references/deprecated/building-facade-deprecated.png
+assets-src/yule-workspace-motion/references/deprecated/office-shell-floorplan-deprecated.png
 ```
 
-Suggested sprite names:
+이 deprecated 파일들은 구현 기준으로 쓰지 마세요.
+
+## 1. Product Direction
+
+`/office`는 더 이상 운영 대시보드가 아닙니다.
+
+목표는 하나의 고퀄리티 픽셀 오피스 층입니다.
 
 ```txt
-desk_ai_front
-desk_ai_back
-desk_backend_front
-desk_backend_back
-desk_devops_front
-desk_devops_back
-desk_product_front
-desk_product_back
-desk_designer_front
-desk_designer_back
-chair_mesh_black
-chair_exec_brown
-chair_blue
-chair_green
-whiteboard_blank
-whiteboard_chart
-bookshelf_wide
-bookshelf_narrow
-watercooler
-plant_large
-plant_small
-server_rack
-monitor_code
-monitor_dashboard
-monitor_review
-monitor_design
-door_office_closed
-door_office_open_01
-door_office_open_02
-door_office_open_03
-agent_seated_front_code
-agent_seated_back_code
-agent_seated_side_code
-agent_seated_front_review
-agent_seated_back_review
+Yule Agent Lab
 ```
 
-If fully automated extraction is hard, crop manually in a deterministic script
-or create a documented crop manifest. The final runtime assets must have
-transparent backgrounds and should not include labels like `FRONT`, `BACK`, or
-set names.
+이 화면은 agent들이 실제 사무실에서 일하고, 앉고, 움직이고, 대화하고,
+회의하고, 리뷰하고, 승인 대기하는 game-like workspace여야 합니다.
 
-## Rendering Architecture
+기존처럼 dashboard card, chart, large inspector, multi-floor navigation 위에
+픽셀 배경을 붙이는 방식은 실패입니다.
 
-Use Phaser 3 + Tiled tilemap if practical. If keeping the current canvas/Tiled
-loader temporarily, structure it so Phaser can replace it cleanly.
+## 2. Use Only The Canonical Layout Source
 
-Target structure:
+반드시 아래 파일을 기준으로 맵을 다시 구성하세요.
 
 ```txt
-apps/web/src/office/GameOffice.tsx
-apps/web/src/office/game/
-  AgentLabScene.ts
-  agents.ts
-  assetManifest.ts
-  placement.ts
-  speech.ts
-  weather.ts
-  timeOfDay.ts
-apps/web/public/vendor/yule-office/
-  yule-agent-lab.tmj
-  yule-office-tiles.png
-  yule-office-objects.png
-  yule-office-agents.png
+assets-src/yule-workspace-motion/references/office-shell-floorplan-v2.png
 ```
 
-Keep React for lightweight overlay UI. Phaser owns the map, sprites, camera,
-depth sorting, animation, and movement.
+이 파일을 기준으로:
 
-## Time And Weather
+- 방 구조
+- 벽 구조
+- 문 위치
+- 복도 동선
+- 사무실 구역
+- 책상/회의/리뷰/승인 공간의 전체 방향성
 
-Use KST as the default time basis.
+을 결정하세요.
 
-Map KST time to mood:
+주의:
 
-- dawn
-- morning
-- day
-- sunset
-- evening
-- night
+- `building-facade.png`를 사용하지 마세요.
+- `office-shell-floorplan.png`를 사용하지 마세요.
+- 기존 Tiled map의 이상한 벽/복도/방 배치를 유지하지 마세요.
+- 기존 배치 위에 새 가구를 얹지 마세요.
+- 새 `office-shell-floorplan-v2.png`를 기준으로 재구성하세요.
 
-Use `time-of-day-backgrounds.png` for the exterior/window mood. If weather data
-is not available yet, create a deterministic mock weather state with clear,
-cloudy, rain, and snow variants. Use the weather source sheets for overlays:
+## 3. Remove Old UI Chrome
 
-- drifting clouds
-- rain streaks
-- snow particles
-- puddles
-- sparkle/star effects
+현재 화면의 가장 큰 문제 중 하나는 UI가 맵을 방해한다는 점입니다.
 
-Do not let weather effects cover agents or important UI.
+기본 화면에서 제거하거나 숨기세요.
 
-## Interaction
+- 왼쪽 vertical sidebar
+- building/floor 탭
+- 큰 floating menu
+- 큰 right inspector
+- dashboard metrics/cards/charts
+- floor/team tabs가 맵 위를 가리는 구조
+- 메뉴가 사무실 오브젝트를 덮는 구조
 
-Agent click:
+남길 수 있는 UI는 작고 가벼워야 합니다.
 
-- Open compact agent menu:
+- 작은 top HUD
+  - KST time
+  - active agent count
+  - zoom
+  - follow active
+- agent 클릭 시 작은 context menu
   - Assign Task
   - New Session
   - Session History
   - Stop Task
   - View Details
 
-Agent speech:
+맵이 제품입니다. UI chrome이 주인공이 되면 안 됩니다.
 
-- blocked: short urgent bubble
-- waiting/approval: approval bubble
-- meeting: short conversation bubble
-- idle: occasional ambient bubble only, not constant
-- returning to desk / browsing docs / running tests: small status bubble
+## 4. Rebuild The Floor, Do Not Patch It
 
-Movement:
+현재 결과물은 정수기, 선반, 벽, 메뉴, 책상이 뒤죽박죽입니다.
+이건 에셋 문제가 아니라 layout policy가 없는 문제입니다.
 
-- Agents should interpolate between seat/poi positions.
-- Use simple grid/path movement if collision is available.
-- Use depth sorting by y position.
+이번 작업에서는 기존 floor layout을 부분 수정하지 말고,
+`office-shell-floorplan-v2.png` 기준으로 한 층을 다시 짜세요.
 
-## What To Remove Or De-emphasize
+금지:
 
-- Multi-floor selection as the main experience.
-- Building view as the default entry point.
-- Right inspector always open.
-- Chart/dashboard cards in Pixel Office.
-- Large floor/team tabs that cover the map.
-- Generated-looking repeated desks.
-- CSS-drawn furniture as the final visual source.
+- 정수기를 모든 방에 랜덤하게 배치
+- 서버랙/화분/선반/프린터를 목적 없이 흩뿌리기
+- 이상한 줄무늬 벽/두꺼운 회색 통로 만들기
+- 방을 색깔만 다른 큰 사각형으로 나누기
+- 책상이 서로 멀리 떨어져 있는 구조
+- agent가 벽, 문, 책상 위에 떠 있는 배치
+- 큰 빈 바닥을 타일만 반복해서 채우기
 
-The building/exterior can return later as a separate landing/overview, but the
-current priority is one high-quality playable floor.
+모든 오브젝트는 “왜 거기에 있는지”가 보여야 합니다.
 
-## Acceptance Criteria
+예:
 
-- `/office` opens directly into a dense single-floor game office.
-- The map uses `office-shell-floorplan.png` as the interior layout reference.
-- The building/exterior view, if present, uses the updated `building-facade.png`.
-- The office uses the provided source images as extracted sprites/tiles, not
-  primitive CSS rectangles.
-- Agents are loaded dynamically from the registry/source.
-- All agents can be placed on the one floor via role/capability/metadata.
-- Desk direction is correct: front/back sprites are used, not rotated fakes.
-- Agent seated pose comes from `seated-desk-motion-01.png` through
-  `seated-desk-motion-04.png` and faces the correct desk/monitor.
-- Door motion from `door-motion.png` is wired for room entry/exit or at least
-  extracted and integrated as animated door sprites.
-- Agent speech bubbles feel like actual in-world dialogue.
-- Time-of-day and weather elements are wired from the provided source sheets.
-- Existing session/detail behavior still works through agent click or a compact
-  drawer.
-- The result feels closer to `agent-town` style: a living pixel workspace, not a
-  dashboard.
+- water cooler: 복도 끝, 휴게 공간, 회의실 근처
+- server rack: Ops/Review zone 또는 장비 벽면
+- bookshelf: 벽면에 붙임
+- plant: 문 옆, 창가, 코너, 라운지
+- printer: 사무실 벽면 또는 공용 복도
+- whiteboard: 회의실/리뷰룸/팀장실 벽면
 
-Important: Do not chase every floor/building feature right now. Make one floor
-beautiful and functional first.
+## 5. Desk Pods Are The First Priority
+
+이번 단계에서 가장 먼저 고쳐야 할 것은 책상입니다.
+
+현재 책상은 떨어져 있고, 방향도 섞이고, workstation처럼 보이지 않습니다.
+레퍼런스처럼 붙어 있는 desk pod/cubicle cluster로 재구성하세요.
+
+사용할 desk references:
+
+```txt
+assets-src/yule-workspace-motion/references/desk-ai-engineer-backend-devops.png
+assets-src/yule-workspace-motion/references/desk-analyst-product-designer.png
+```
+
+책상 구성 규칙:
+
+- 2x2, 2x3, 3x2 형태의 붙은 desk pod를 만든다.
+- 책상 사이에는 shared partition이 있다.
+- 책상 앞/뒤 방향을 구분한다.
+- front desk를 회전해서 back desk처럼 쓰지 않는다.
+- front/back/side sprite를 별도로 사용하거나 제대로 파생시킨다.
+- 모니터, 키보드, 마우스, 노트, 컵, 케이블, 스티키노트를 포함한다.
+- 책상 다리, 앞면 lip, side edge, contact shadow가 있어야 한다.
+- chair는 책상과 붙어 있어야 하며 떠 보이면 안 된다.
+- desk pod 사이 간격은 너무 넓지 않게 한다.
+
+방향 규칙:
+
+- 의자가 아래에 있는 책상: agent는 위쪽 책상/모니터를 바라본다.
+- 의자가 위에 있는 책상: agent는 아래쪽 책상/모니터를 바라본다.
+- 반대편 책상은 2D 회전이 아니라 front/back 관점이 바뀐 sprite여야 한다.
+- 모니터 화면/뒷면, 키보드 위치, agent 방향이 서로 맞아야 한다.
+
+## 6. Seated Work Motion
+
+standing character를 의자 근처에 올려놓는 방식은 금지입니다.
+
+사용할 최신 seated references:
+
+```txt
+assets-src/yule-workspace-motion/references/seated-desk-motion-01.png
+assets-src/yule-workspace-motion/references/seated-desk-motion-02.png
+assets-src/yule-workspace-motion/references/seated-desk-motion-03.png
+assets-src/yule-workspace-motion/references/seated-desk-motion-04.png
+```
+
+상태별 배치:
+
+- coding/running/reading: 자기 책상에 앉은 작업 pose
+- planning: planning/product board 근처
+- reviewing: review room/table
+- meeting: 같은 groupId끼리 같은 standup/meeting zone
+- awaiting_approval/waiting: Tech Lead / Human Approval zone
+- blocked: Tech Lead 근처 또는 urgent bubble
+- idle: desk, lounge, water cooler, bookshelf 주변
+
+agent가 책상에서 일할 때:
+
+- chair, body, desk, monitor, keyboard가 한 workstation처럼 맞아야 한다.
+- agent가 책상 위에 서 있거나 떠 있으면 실패다.
+- seated pose는 desk orientation과 일치해야 한다.
+
+## 7. Door Motion And Room Boundaries
+
+사용할 door reference:
+
+```txt
+assets-src/yule-workspace-motion/references/door-motion.png
+```
+
+문은 정적 장식이 아니라 room transition 요소여야 합니다.
+
+요구:
+
+- door closed/open frames를 atlas로 추출
+- Tiled object/POI에 door 위치 정의
+- agent가 방에 들어갈 때:
+  - door 앞까지 이동
+  - open animation
+  - 통과
+  - close animation
+- wall collision을 문 위치와 연결
+- Tech Lead Office, Review Room, Meeting/Standup Room에는 문 사용
+
+## 8. Room/Zones
+
+`office-shell-floorplan-v2.png`를 기준으로 하나의 층 안에 구역을 만드세요.
+단, 색깔만 다른 방을 만들지 마세요. 각 구역은 가구와 소품으로 목적이
+보여야 합니다.
+
+권장 구역:
+
+- Main Engineering Pod
+  - 가장 큰 desk pod
+  - 개발/AI agent들이 주로 일하는 공간
+- Product / Planning Area
+  - product desk, planning board, design/prototype monitor, bookshelf
+- Review / Ops Area
+  - review desk/table, CI monitor, server rack, deploy board
+- Tech Lead / Human Approval Office
+  - tech lead desk
+  - assistant/visitor chair
+  - approval board
+  - 문 모션
+- Standup / Chat Zone
+  - 작은 테이블
+  - 말풍선 중심 공간
+- Utility Wall
+  - water cooler, printer, shelf, documents
+
+## 9. Agent Source And Placement
+
+agent를 8개로 하드코딩하지 마세요.
+
+yule-studio-agent registry/source를 기준으로 동적으로 agent 목록을 읽고,
+role/title/capability/metadata에 따라 한 층 안에 배치하세요.
+
+규칙:
+
+- 모든 agent는 같은 `Yule Agent Lab` 맵 안에 존재한다.
+- `metadata.zone`, `metadata.desk`, `metadata.seat`가 있으면 우선한다.
+- 없으면 role/capability 기반으로 자동 배치한다.
+- 알 수 없는 agent는 General Studio/overflow desk에 배치한다.
+- 같은 groupId/sessionId의 meeting agent는 같은 테이블/standup zone에 모인다.
+- seat allocation으로 agent끼리 겹치지 않게 한다.
+
+## 10. Tiled / Phaser Structure
+
+가능하면 Phaser 3 + Tiled tilemap 구조로 구현하세요.
+현재 canvas/Tiled loader를 유지하더라도 Phaser로 교체 가능한 구조로
+분리하세요.
+
+권장 layer:
+
+```txt
+floor
+walls
+doors
+furniture_under
+desks
+props
+agents
+overhead
+collisions
+pois
+spawns
+```
+
+오브젝트 위치는 코드에서 랜덤 생성하지 말고 Tiled map 또는 명시적인
+placement manifest에 두세요.
+
+권장 파일:
+
+```txt
+apps/web/src/office/GameOffice.tsx
+apps/web/src/office/game/AgentLabScene.ts
+apps/web/src/office/game/assetManifest.ts
+apps/web/src/office/game/placement.ts
+apps/web/src/office/game/speech.ts
+apps/web/src/office/game/timeOfDay.ts
+apps/web/src/office/game/weather.ts
+apps/web/public/vendor/yule-office/yule-agent-lab.tmj
+apps/web/public/assets/yule-office/
+```
+
+## 11. Time / Weather
+
+KST 기준 time-of-day를 유지하세요.
+
+사용할 references:
+
+```txt
+assets-src/yule-workspace-motion/references/time-of-day-backgrounds.png
+assets-src/yule-workspace-motion/references/time-of-day-building.png
+assets-src/yule-workspace-motion/references/weather-clear-elements.png
+assets-src/yule-workspace-motion/references/weather-rain-snow-cloud-elements.png
+```
+
+다만 이번 우선순위는 내부 사무실 floor 완성입니다.
+weather/time은 작은 창문 분위기나 top HUD 정도로만 반영하고, 맵을
+가리지 마세요.
+
+## 12. Acceptance Criteria
+
+아래를 만족해야 완료입니다.
+
+- `/office`가 sidebar/dashboard 없이 `Yule Agent Lab`으로 바로 열린다.
+- `office-shell-floorplan-v2.png`만 layout source of truth로 사용한다.
+- `building-facade.png`, `office-shell-floorplan.png`를 기준으로 쓰지 않는다.
+- 정수기/서버랙/선반/화분이 랜덤하게 흩어져 있지 않다.
+- 이상한 줄무늬 벽/의미 없는 두꺼운 복도가 사라진다.
+- 책상이 서로 떨어져 있지 않고 desk pod/cubicle cluster로 붙어 있다.
+- desk front/back 방향이 맞고, monitor/keyboard/chair/agent 방향이 맞다.
+- seated motion sheet를 사용해 agent가 실제로 앉아 일하는 것처럼 보인다.
+- door-motion을 사용해 방 출입 모션 또는 최소한 animated door sprite가 있다.
+- agent는 yule-studio-agent registry/source 기반으로 동적으로 배치된다.
+- 전체 결과가 dashboard가 아니라 agent-town/Gather 스타일의 living pixel office처럼 보인다.
+
+중요:
+이번 작업은 기존 맵을 조금 수정하는 작업이 아닙니다. 기존 정책을 폐기하고,
+`office-shell-floorplan-v2.png` 하나를 기준으로 `Yule Agent Lab` 한 층을
+처음부터 정리해서 만드는 작업입니다.
