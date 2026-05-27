@@ -50,6 +50,10 @@ interface Poi {
 const ATLAS = '/assets/yule-office/atlas';
 const VENDOR = '/vendor/yule-office';
 const FLOOR_BG = '/assets/yule-office/office-shell-floorplan-v2.png'; // single floor base image
+// Floor interior (furniture / desks / agents / doors / bubbles) is OFF — the
+// Floor View shows only the floorplan base while the interior is rebuilt on the
+// new-desk assets. Flip to true to bring the interior rendering back.
+const RENDER_INTERIOR = false;
 const SKINS = 18;
 const AGENT_SCALE = 0.42;  // walking / standing sprite
 const WS_SCALE = 0.82;     // seated-at-desk composite
@@ -134,42 +138,36 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       // No procedural floor/wall tile layers are drawn (the tmj is metadata only).
       this.add.image(0, 0, 'floorplan').setOrigin(0, 0).setDisplaySize(map.widthInPixels, map.heightInPixels).setDepth(-1000);
 
-      // furniture, depth-sorted by base-y (+ z bias)
-      const furn = map.getObjectLayer('furniture')?.objects ?? [];
-      for (const o of furn) {
-        const name = propVal(o, 'sprite');
-        if (!this.textures.getFrame('office', name)) continue;
-        const scale = propVal(o, 'scale') ?? 0.4;
-        const z = propVal(o, 'z') ?? 0;
-        this.add.image(o.x!, o.y!, 'office', name).setOrigin(0.5, 1).setScale(scale).setDepth(o.y! + z * 4);
-      }
-
-      // seats + pois. Each seat owns an empty-desk + chair shown when its agent
-      // is away; an occupied+working seat swaps to the seated composite (update).
-      this.seats = (map.getObjectLayer('seats')?.objects ?? []).map((o: any) => {
-        const facing = (propVal(o, 'facing') as 'up' | 'down') ?? 'up';
-        const desk = propVal(o, 'desk') ?? (facing === 'down' ? 'desk_ai_back' : 'desk_ai_front');
-        const s: SeatSlot = { x: o.x, y: o.y, role: propVal(o, 'role') ?? 'member', facing, zone: propVal(o, 'zone') ?? 'desk', desk, taken: null };
-        // composites always have the desk below the agent → empty state matches:
-        // desk below the seat anchor, chair tucked above (behind the desk).
-        const dsk = this.textures.getFrame('office', desk) ? desk : 'desk_ai_back';
-        s.deskImg = this.add.image(s.x, s.y + 16, 'office', dsk).setOrigin(0.5, 0.5).setScale(DESK_SCALE).setDepth(s.y + 16);
-        s.chairImg = this.add.image(s.x, s.y - 12, 'office', facing === 'down' ? 'chair_mesh_black' : 'chair_mesh_dark')
-          .setOrigin(0.5, 0.5).setScale(0.26).setDepth(s.y - 14);
-        return s;
-      });
-      for (const o of map.getObjectLayer('pois')?.objects ?? []) {
-        this.pois[o.name!] = {
-          name: o.name!, kind: propVal(o, 'kind') ?? '', x: o.x!, y: o.y!, w: o.width!, h: o.height!,
-          cx: o.x! + o.width! / 2, cy: o.y! + o.height! / 2,
-        };
-      }
-
-      // doors — sit in their wall opening, opened by nearby agents (see update)
-      for (const o of map.getObjectLayer('doors')?.objects ?? []) {
-        if (!this.textures.getFrame('office', 'door_0')) break;
-        const spr = this.add.image(o.x!, o.y!, 'office', 'door_0').setOrigin(0.5, 0.55).setScale(0.26).setDepth(o.y! - 40);
-        this.doors.push({ spr, x: o.x!, y: o.y!, open: 0 });
+      if (RENDER_INTERIOR) {
+        // furniture, depth-sorted by base-y (+ z bias)
+        for (const o of map.getObjectLayer('furniture')?.objects ?? []) {
+          const name = propVal(o, 'sprite');
+          if (!this.textures.getFrame('office', name)) continue;
+          const scale = propVal(o, 'scale') ?? 0.4;
+          const z = propVal(o, 'z') ?? 0;
+          this.add.image(o.x!, o.y!, 'office', name).setOrigin(0.5, 1).setScale(scale).setDepth(o.y! + z * 4);
+        }
+        // seats. Each owns an empty-desk + chair shown when its agent is away;
+        // an occupied+working seat swaps to the seated composite (update).
+        this.seats = (map.getObjectLayer('seats')?.objects ?? []).map((o: any) => {
+          const facing = (propVal(o, 'facing') as 'up' | 'down') ?? 'up';
+          const desk = propVal(o, 'desk') ?? (facing === 'down' ? 'desk_ai_back' : 'desk_ai_front');
+          const s: SeatSlot = { x: o.x, y: o.y, role: propVal(o, 'role') ?? 'member', facing, zone: propVal(o, 'zone') ?? 'desk', desk, taken: null };
+          const dsk = this.textures.getFrame('office', desk) ? desk : 'desk_ai_back';
+          s.deskImg = this.add.image(s.x, s.y + 16, 'office', dsk).setOrigin(0.5, 0.5).setScale(DESK_SCALE).setDepth(s.y + 16);
+          s.chairImg = this.add.image(s.x, s.y - 12, 'office', facing === 'down' ? 'chair_mesh_black' : 'chair_mesh_dark')
+            .setOrigin(0.5, 0.5).setScale(0.26).setDepth(s.y - 14);
+          return s;
+        });
+        for (const o of map.getObjectLayer('pois')?.objects ?? []) {
+          this.pois[o.name!] = { name: o.name!, kind: propVal(o, 'kind') ?? '', x: o.x!, y: o.y!, w: o.width!, h: o.height!, cx: o.x! + o.width! / 2, cy: o.y! + o.height! / 2 };
+        }
+        // doors — sit in their wall opening, opened by nearby agents (see update)
+        for (const o of map.getObjectLayer('doors')?.objects ?? []) {
+          if (!this.textures.getFrame('office', 'door_0')) break;
+          const spr = this.add.image(o.x!, o.y!, 'office', 'door_0').setOrigin(0.5, 0.55).setScale(0.26).setDepth(o.y! - 40);
+          this.doors.push({ spr, x: o.x!, y: o.y!, open: 0 });
+        }
       }
 
       this.buildAnims();
@@ -200,15 +198,15 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     }
 
     setupCamera(mw: number, mh: number) {
-      const cam = this.cameras.main;
-      cam.setBounds(0, 0, mw, mh);
+      // no setBounds → a world smaller than the viewport stays centred (bounds
+      // would clamp scroll to 0 and shove it to the top-left corner)
       this.fitCamera(mw, mh);
     }
     fitCamera(mw: number, mh: number) {
       const cam = this.cameras.main;
-      this.minZoom = Math.min(cam.width / mw, cam.height / mh);
-      cam.setZoom(Math.max(cam.zoom || 0, this.minZoom) || this.minZoom);
-      if (cam.zoom < this.minZoom) cam.setZoom(this.minZoom);
+      const fit = Math.min(cam.width / mw, cam.height / mh);
+      this.minZoom = fit * 0.9;
+      cam.setZoom(fit * 0.92); // slight margin so the floor isn't edge-to-edge
       cam.centerOn(mw / 2, mh / 2);
     }
 
@@ -311,6 +309,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
 
     syncAgents(agents: AgentView[]) {
       this.agents = agents;
+      if (!RENDER_INTERIOR) return; // interior off → no agents/desks rendered
       this.allocate(agents);
       const alive = new Set(agents.map((a) => a.id));
       for (const [id, c] of this.sprites) if (!alive.has(id)) { this.disposeAgent(c); this.sprites.delete(id); }
@@ -342,6 +341,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     }
 
     update(t: number, dt: number) {
+      if (!RENDER_INTERIOR) return; // nothing dynamic to animate on a bare floor
       const speed = 0.12 * dt; // px per frame
       const bubbleScale = Phaser.Math.Clamp(1 / this.cameras.main.zoom, 0.7, 1.6);
 
