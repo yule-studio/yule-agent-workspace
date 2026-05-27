@@ -5,20 +5,20 @@
 
 /* minimal floating HUD */
 .lab-hud {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 8px; z-index: 20;
-  padding: 6px 8px; border-radius: 12px;
-  background: rgba(20, 23, 29, 0.72); backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-  font-size: 12px; color: #e6e9ef;
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 5px; z-index: 20;
+  padding: 3px 5px; border-radius: 10px;
+  background: rgba(20, 23, 29, 0.66); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.07); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+  font-size: 11px; color: #e6e9ef;
 }
-.lab-hud .chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); white-space: nowrap; }
-.lab-hud .orb { width: 9px; height: 9px; border-radius: 50%; background: #f2cf6b; box-shadow: 0 0 6px rgba(242, 207, 107, 0.7); }
-.lab-hud .sep { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.12); }
+.lab-hud .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); white-space: nowrap; }
+.lab-hud .orb { width: 8px; height: 8px; border-radius: 50%; background: #f2cf6b; box-shadow: 0 0 5px rgba(242, 207, 107, 0.7); }
+.lab-hud .sep { width: 1px; height: 15px; background: rgba(255, 255, 255, 0.12); }
 .lab-hud button {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border-radius: 8px; border: 0; cursor: pointer;
-  background: rgba(255, 255, 255, 0.06); color: #cfd5df; font-size: 15px; line-height: 1;
+  width: 23px; height: 23px; border-radius: 7px; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); color: #cfd5df; font-size: 13px; line-height: 1;
 }
 .lab-hud button:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .lab-hud button.on { background: #3b82f6; color: #fff; }

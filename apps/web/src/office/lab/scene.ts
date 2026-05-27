@@ -38,7 +38,10 @@ interface SeatSlot {
   role: string;
   facing: 'up' | 'down';
   zone: string;
+  desk: string;          // office-desk sprite shown when empty / agent away
   taken?: string | null;
+  deskImg?: any;
+  chairImg?: any;
 }
 interface Poi {
   name: string;
@@ -54,7 +57,9 @@ interface Poi {
 const ATLAS = '/assets/yule-office/atlas';
 const VENDOR = '/vendor/yule-office';
 const SKINS = 18;
-const AGENT_SCALE = 0.42;
+const AGENT_SCALE = 0.42;  // walking / standing sprite
+const WS_SCALE = 0.82;     // seated-at-desk composite
+const DESK_SCALE = 0.3;    // empty desk shown when the seat's agent is away
 
 const propVal = (o: any, name: string) => o.properties?.find((p: any) => p.name === name)?.value;
 
@@ -64,7 +69,7 @@ function zoneForActivity(a: AgentView): string | null {
     case 'meeting': return 'standup';
     case 'reviewing': return 'review-table';
     case 'planning': return 'planning-area';
-    case 'waiting': return 'lounge';
+    case 'waiting': return 'approval'; // Tech Lead / Human Approval office
     default: return null; // coding / reading / running / blocked / idle / done → desk
   }
 }
@@ -129,6 +134,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       this.load.tilemapTiledJSON('lab', `${VENDOR}/yule-agent-lab.tmj`);
       this.load.atlas('office', `${ATLAS}/office-objects.png`, `${ATLAS}/office-objects.json`);
       this.load.atlas('agents', `${ATLAS}/agents.png`, `${ATLAS}/agents.json`);
+      this.load.atlas('ws', `${ATLAS}/workstations.png`, `${ATLAS}/workstations.json`);
     }
 
     create() {
@@ -147,11 +153,20 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
         this.add.image(o.x!, o.y!, 'office', name).setOrigin(0.5, 1).setScale(scale).setDepth(o.y! + z * 4);
       }
 
-      // seats + pois
-      this.seats = (map.getObjectLayer('seats')?.objects ?? []).map((o: any) => ({
-        x: o.x, y: o.y, role: propVal(o, 'role') ?? 'member',
-        facing: (propVal(o, 'facing') as 'up' | 'down') ?? 'up', zone: propVal(o, 'zone') ?? 'desk', taken: null,
-      }));
+      // seats + pois. Each seat owns an empty-desk + chair shown when its agent
+      // is away; an occupied+working seat swaps to the seated composite (update).
+      this.seats = (map.getObjectLayer('seats')?.objects ?? []).map((o: any) => {
+        const facing = (propVal(o, 'facing') as 'up' | 'down') ?? 'up';
+        const desk = propVal(o, 'desk') ?? (facing === 'down' ? 'desk_ai_back' : 'desk_ai_front');
+        const s: SeatSlot = { x: o.x, y: o.y, role: propVal(o, 'role') ?? 'member', facing, zone: propVal(o, 'zone') ?? 'desk', desk, taken: null };
+        // composites always have the desk below the agent → empty state matches:
+        // desk below the seat anchor, chair tucked above (behind the desk).
+        const dsk = this.textures.getFrame('office', desk) ? desk : 'desk_ai_back';
+        s.deskImg = this.add.image(s.x, s.y + 16, 'office', dsk).setOrigin(0.5, 0.5).setScale(DESK_SCALE).setDepth(s.y + 16);
+        s.chairImg = this.add.image(s.x, s.y - 12, 'office', facing === 'down' ? 'chair_mesh_black' : 'chair_mesh_dark')
+          .setOrigin(0.5, 0.5).setScale(0.26).setDepth(s.y - 14);
+        return s;
+      });
       for (const o of map.getObjectLayer('pois')?.objects ?? []) {
         this.pois[o.name!] = {
           name: o.name!, kind: propVal(o, 'kind') ?? '', x: o.x!, y: o.y!, w: o.width!, h: o.height!,
@@ -162,7 +177,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       // doors — sit in their wall opening, opened by nearby agents (see update)
       for (const o of map.getObjectLayer('doors')?.objects ?? []) {
         if (!this.textures.getFrame('office', 'door_0')) break;
-        const spr = this.add.image(o.x!, o.y!, 'office', 'door_0').setOrigin(0.5, 0.5).setScale(0.22).setDepth(o.y!);
+        const spr = this.add.image(o.x!, o.y!, 'office', 'door_0').setOrigin(0.5, 0.55).setScale(0.26).setDepth(o.y! - 40);
         this.doors.push({ spr, x: o.x!, y: o.y!, open: 0 });
       }
 
@@ -332,6 +347,23 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       t.setData('urgent', b.tone === 'urgent');
     }
 
+    onPick = (id: string, p: any) => {
+      this.pickedAgent = id;
+      this.cb.onAgentClick?.(id, p.event?.clientX ?? p.x, p.event?.clientY ?? p.y);
+    };
+
+    /** Seated-at-desk composite for a skin (lazy). Null if that skin lacks one. */
+    ensureComposite(c: any, id: string, skin: string) {
+      let comp = c.getData('comp');
+      if (comp) return comp;
+      if (!this.textures.getFrame('ws', `${skin}_wsfront`)) return null;
+      comp = this.add.image(c.x, c.y, 'ws', `${skin}_wsfront`).setOrigin(0.5, 0.5).setScale(WS_SCALE).setVisible(false);
+      comp.setInteractive({ useHandCursor: true });
+      comp.on('pointerdown', (p: any) => this.onPick(id, p));
+      c.setData('comp', comp);
+      return comp;
+    }
+
     syncAgents(agents: AgentView[]) {
       this.agents = agents;
       this.allocate(agents);
@@ -343,33 +375,24 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
         const tgt = this.targetFor(a);
         let c = this.sprites.get(a.id);
         if (!c) {
-          const spr = this.add.sprite(tgt.x, tgt.y, 'agents', `${skin}_idle`).setOrigin(0.5, 1).setScale(AGENT_SCALE);
-          spr.setInteractive({ useHandCursor: true });
-          spr.on('pointerdown', (p: any) => {
-            this.pickedAgent = a.id;
-            this.cb.onAgentClick?.(a.id, p.event?.clientX ?? p.x, p.event?.clientY ?? p.y);
-          });
-          c = spr;
+          c = this.add.sprite(tgt.x, tgt.y, 'agents', `${skin}_idle`).setOrigin(0.5, 1).setScale(AGENT_SCALE);
+          c.setInteractive({ useHandCursor: true });
+          c.on('pointerdown', (p: any) => this.onPick(a.id, p));
           this.sprites.set(a.id, c);
           c.setDepth(tgt.y);
         }
+        c.setData('id', a.id);
         c.setData('skin', skin);
         c.setData('target', tgt);
-        c.setData('activity', a.activity);
+        c.setData('working', (a.activity === 'coding' || a.activity === 'running' || a.activity === 'reading') && tgt.seated);
         this.setBubble(c, bubbleFor(a));
-        // "screen on" glow for agents actively working at a desk
-        const working = (a.activity === 'coding' || a.activity === 'running' || a.activity === 'reading') && tgt.seated;
-        let g = c.getData('glow');
-        if (working && !g) {
-          g = this.add.ellipse(tgt.x, tgt.y - 14, 30, 14, 0x6cd0ff, 0.5).setDepth(tgt.y - 1).setBlendMode(Phaser.BlendModes.ADD);
-          c.setData('glow', g);
-        } else if (!working && g) { g.destroy(); c.setData('glow', null); }
       }
     }
 
     disposeAgent(c: any) {
       c.getData('bubble')?.destroy();
       c.getData('glow')?.destroy();
+      c.getData('comp')?.destroy();
       c.destroy();
     }
 
@@ -380,39 +403,64 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       // doors open as an agent nears, ease shut otherwise (5-frame swing)
       for (const d of this.doors) {
         let near = false;
-        for (const [, c] of this.sprites) if (Math.abs(c.x - d.x) < 70 && Math.abs(c.y - d.y) < 80) { near = true; break; }
+        for (const [, c] of this.sprites) if (c.visible && Math.abs(c.x - d.x) < 70 && Math.abs(c.y - d.y) < 80) { near = true; break; }
         d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt / 140);
         d.spr.setFrame(`door_${Phaser.Math.Clamp(Math.round(d.open * 4), 0, 4)}`);
       }
+
+      // empty desks visible by default; covered when their agent sits down
+      for (const s of this.seats) { s.deskImg?.setVisible(true); s.chairImg?.setVisible(true); }
+
       for (const [, c] of this.sprites) {
         const tgt = c.getData('target');
         if (!tgt) continue;
         const dx = tgt.x - c.x, dy = tgt.y - c.y;
-        const d = Math.hypot(dx, dy);
+        const dist = Math.hypot(dx, dy);
         const skin = c.getData('skin');
-        if (d > 2) {
-          const step = Math.min(speed, d);
-          c.x += (dx / d) * step;
-          c.y += (dy / d) * step;
+        const id = c.getData('id');
+        const moving = dist > 2;
+        if (moving) {
+          const step = Math.min(speed, dist);
+          c.x += (dx / dist) * step; c.y += (dy / dist) * step;
           c.setDepth(c.y);
           if (Math.abs(dx) > 1) c.setFlipX(dx < 0);
           if (c.anims.getName() !== `walk_${skin}`) c.play(`walk_${skin}`);
         } else if (c.anims.isPlaying || c.getData('settled') !== tgt) {
-          c.anims.stop();
-          c.setFlipX(false);
-          c.setFrame(`${skin}_${tgt.seated ? 'sit' : 'idle'}`);
-          c.setDepth(c.y);
+          c.anims.stop(); c.setFlipX(false);
+          c.setFrame(`${skin}_${tgt.seated ? 'sit' : 'idle'}`); c.setDepth(c.y);
           c.setData('settled', tgt);
         }
-        // bubble floats above the head, readable across zoom
+
+        // swap to the seated composite when arrived at the home seat
+        const seat = this.assigned.get(id);
+        const comp = c.getData('comp');
+        const seatedNow = !moving && tgt.seated && seat && this.ensureComposite(c, id, skin);
+        let rep = c; // the visible representation (for bubble/glow anchoring)
+        if (seatedNow) {
+          const cmp = comp ?? c.getData('comp');
+          cmp.setFrame(seat!.facing === 'down' ? `${skin}_wsfront` : `${skin}_wsback`);
+          cmp.setPosition(seat!.x, seat!.y).setDepth(seat!.y).setVisible(true);
+          c.setVisible(false);
+          seat!.deskImg?.setVisible(false); seat!.chairImg?.setVisible(false);
+          rep = cmp;
+        } else {
+          c.setVisible(true);
+          comp?.setVisible(false);
+        }
+
         const bub = c.getData('bubble');
         if (bub) {
-          const urgent = bub.getData('urgent');
-          const bob = urgent ? Math.sin(t / 180) * 3 : 0;
-          bub.setPosition(c.x, c.y - c.displayHeight - 4 + bob).setScale(bubbleScale);
+          const bob = bub.getData('urgent') ? Math.sin(t / 180) * 3 : 0;
+          const top = rep === c ? rep.y - rep.displayHeight : rep.y - rep.displayHeight / 2;
+          bub.setPosition(rep.x, top - 4 + bob).setScale(bubbleScale).setVisible(true);
         }
-        const glow = c.getData('glow');
-        if (glow) { glow.setPosition(c.x, c.y - 22); glow.setAlpha(0.32 + 0.22 * (0.5 + 0.5 * Math.sin(t / 260))); }
+        // "screen on" glow on the workstation monitor while actively working
+        let g = c.getData('glow');
+        if (c.getData('working') && seatedNow) {
+          if (!g) { g = this.add.ellipse(rep.x, rep.y, 26, 12, 0x6cd0ff, 0.5).setBlendMode(Phaser.BlendModes.ADD); c.setData('glow', g); }
+          g.setPosition(rep.x, seat!.facing === 'down' ? rep.y + 6 : rep.y - 16).setDepth(seat!.y + 0.5)
+            .setVisible(true).setAlpha(0.3 + 0.2 * (0.5 + 0.5 * Math.sin(t / 260)));
+        } else if (g) g.setVisible(false);
       }
     }
   };
