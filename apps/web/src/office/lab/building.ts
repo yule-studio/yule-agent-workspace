@@ -35,6 +35,28 @@ function assetsFor(phase: Phase, weather: Weather): { bg: string; bld: string } 
   return { bg, bld };
 }
 
+/**
+ * BuildingCompositor — one place that decides how the building blends into the
+ * scene per time-of-day/weather. tint is a multiply colour (0xffffff = none,
+ * cooler/darker = overcast/night, faint warm = sunset); shadow/fog are alpha
+ * multipliers (heavier on rain/cloudy/night); reflect = wet-floor reflection on
+ * only when raining. Interior detail is preserved (multiply, never a flat wash).
+ */
+type Atmo = { tint: number; shadow: number; fog: number; reflect: boolean };
+function atmospherePreset(phase: Phase, weather: Weather): Atmo {
+  if (weather === 'rain') return { tint: 0xccd6e0, shadow: 1.0, fog: 1.0, reflect: true };
+  if (weather === 'snow') return { tint: 0xe8eef4, shadow: 0.82, fog: 0.85, reflect: false };
+  if (weather === 'cloudy') return { tint: 0xd8e0ea, shadow: 0.95, fog: 1.0, reflect: false };
+  switch (phase) { // clear sky → time-of-day grade
+    case 'night': return { tint: 0xccd2de, shadow: 0.95, fog: 0.7, reflect: false };
+    case 'evening': return { tint: 0xd2d5e0, shadow: 0.9, fog: 0.7, reflect: false };
+    case 'sunset': return { tint: 0xf2e7dc, shadow: 0.8, fog: 0.6, reflect: false }; // faint warm, not orange
+    case 'dawn': return { tint: 0xe3e0ec, shadow: 0.75, fog: 0.7, reflect: false };
+    case 'morning': return { tint: 0xf5f7f9, shadow: 0.7, fog: 0.5, reflect: false };
+    default: return { tint: 0xfbfcfd, shadow: 0.7, fog: 0.5, reflect: false }; // day ≈ original
+  }
+}
+
 export interface BuildingCallbacks { onEnterFloor?: () => void; }
 
 export function makeBuildingScene(Phaser: typeof import('phaser')) {
@@ -87,8 +109,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       this.refl.setMask(this.reflMask.createBitmapMask());
       // the building, grounded on the sidewalk
       this.bld = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 1).setScrollFactor(0).setDepth(10);
-      this.bld.setTint(0xdfe6ee); // subtle cool-grey weather grade (less stark vs hazy bg)
-      this.bld.setInteractive({ useHandCursor: true });
+      this.bld.setInteractive({ useHandCursor: true }); // tone applied by applyAtmosphere()
       this.bld.on('pointerdown', () => this.cb.onEnterFloor?.());
       this.bld.on('pointerover', () => this.cta?.setAlpha(0.95).setScale(1.04));
       this.bld.on('pointerout', () => this.cta?.setAlpha(0.45).setScale(1));
@@ -114,7 +135,17 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
 
       this.relayout();
       this.applyWeather();
+      this.applyAtmosphere();
       this.scale.on('resize', () => this.relayout());
+    }
+
+    // common compositing pass — every facade tones to the scene's atmosphere
+    applyAtmosphere() {
+      const a = atmospherePreset(this.env.phase, this.env.weather);
+      this.bld?.setTint(a.tint);
+      this.shadow?.setAlpha(a.shadow);
+      this.fog?.setAlpha(a.fog);
+      this.refl?.setVisible(a.reflect); // wet-floor reflection only when raining
     }
 
     ensureFxTextures() {
@@ -184,6 +215,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
         if (this.textures.exists(bldK)) { this.bld.setTexture(bldK); this.refl?.setTexture(bldK); }
         this.relayout();
         this.applyWeather();
+        this.applyAtmosphere();
       };
       const need: [string, string][] = [];
       if (!this.textures.exists(bgK)) need.push([bgK, bgUrl(bg)]);
