@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useLive } from '@/lib/live';
 import { StateBadge, ModePill } from './StateBadge';
@@ -126,12 +125,6 @@ export function SessionPanel({ sessionId, compact }: { sessionId: string; compac
               ))}
           </ul>
         </div>
-      )}
-
-      {compact && (
-        <Link className="small" href={`/sessions/${sessionId}`}>
-          open full session →
-        </Link>
       )}
     </div>
   );
