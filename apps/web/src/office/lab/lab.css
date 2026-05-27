@@ -24,6 +24,11 @@
 .lab-hud button.on { background: #3b82f6; color: #fff; }
 .lab-hud .count b { color: #7ee0a8; }
 .lab-hud .wx { font-size: 14px; line-height: 1; }
+.lab-hud .home { display: inline-flex; align-items: center; justify-content: center; height: 23px; padding: 0 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.06); color: #cfd5df; text-decoration: none; font-size: 15px; }
+.lab-hud .home:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.lab-hud .seg { display: inline-flex; border-radius: 7px; overflow: hidden; background: rgba(255, 255, 255, 0.06); }
+.lab-hud .seg button { width: auto; padding: 0 9px; height: 23px; border-radius: 0; background: transparent; font-size: 11px; }
+.lab-hud .seg button.on { background: #3b82f6; color: #fff; }
 
 /* phase tints on the HUD orb */
 .phase-dawn .orb { background: #cbbce0; }

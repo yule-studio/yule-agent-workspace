@@ -18,17 +18,21 @@ export interface LabControls {
 
 export function LabGame({
   agents,
+  view = 'floor',
   phase = 'day',
   weather = 'clear',
   onAgentClick,
   onBackgroundClick,
+  onEnterFloor,
   controlsRef,
 }: {
   agents: AgentView[];
+  view?: 'floor' | 'building';
   phase?: Phase;
   weather?: Weather;
   onAgentClick?: (agentId: string, clientX: number, clientY: number) => void;
   onBackgroundClick?: () => void;
+  onEnterFloor?: () => void;
   controlsRef?: Ref<LabControls>;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -38,8 +42,8 @@ export function LabGame({
   const agentsRef = useRef(agents);
   const envRef = useRef({ phase, weather });
   envRef.current = { phase, weather };
-  const cbRef = useRef({ onAgentClick, onBackgroundClick });
-  cbRef.current = { onAgentClick, onBackgroundClick };
+  const cbRef = useRef({ onAgentClick, onBackgroundClick, onEnterFloor });
+  cbRef.current = { onAgentClick, onBackgroundClick, onEnterFloor };
 
   useImperativeHandle(controlsRef, () => ({
     zoomIn: () => sceneRef.current?.cameras?.main?.setZoom(Math.min(2.6, sceneRef.current.cameras.main.zoom * 1.2)),
@@ -56,8 +60,8 @@ export function LabGame({
     (async () => {
       const Phaser = (await import('phaser')).default;
       const { makeLabScene } = await import('./scene.js');
+      const { makeBuildingScene } = await import('./building.js');
       if (disposed || !hostRef.current) return;
-      const Scene = makeLabScene(Phaser);
       const game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: hostRef.current,
@@ -65,7 +69,7 @@ export function LabGame({
         pixelArt: true,
         roundPixels: true,
         scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-        scene: Scene,
+        scene: [makeLabScene(Phaser), makeBuildingScene(Phaser)],
       });
       gameRef.current = game;
       game.registry.set('agents', agentsRef.current);
@@ -73,6 +77,7 @@ export function LabGame({
       game.registry.set('cb', {
         onAgentClick: (id: string, x: number, y: number) => cbRef.current.onAgentClick?.(id, x, y),
         onBackgroundClick: () => cbRef.current.onBackgroundClick?.(),
+        onEnterFloor: () => cbRef.current.onEnterFloor?.(),
         onReady: () => {
           sceneRef.current = game.scene.getScene('lab');
           readyRef.current = true;
@@ -95,8 +100,25 @@ export function LabGame({
   }, [agents]);
 
   useEffect(() => {
-    if (readyRef.current && sceneRef.current) sceneRef.current.setEnv(phase, weather);
+    const game = gameRef.current;
+    if (!game) return;
+    game.registry.set('env', { phase, weather });
+    game.scene.getScene('lab')?.setEnv?.(phase, weather);
+    game.scene.getScene('building')?.setEnv?.(phase, weather);
   }, [phase, weather]);
+
+  // Floor ↔ Building view: sleep one scene, wake/run the other
+  useEffect(() => {
+    const game = gameRef.current;
+    if (!game) return;
+    const s = game.scene;
+    const show = view === 'building' ? 'building' : 'lab';
+    const hide = view === 'building' ? 'lab' : 'building';
+    if (s.isActive(hide)) s.sleep(hide);
+    if (s.isSleeping(show)) s.wake(show);
+    else if (!s.isActive(show)) s.run(show);
+    s.getScene(show)?.setEnv?.(phase, weather);
+  }, [view, phase, weather]);
 
   return <div ref={hostRef} className="lab-canvas" />;
 }

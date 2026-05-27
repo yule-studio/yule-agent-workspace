@@ -31,6 +31,7 @@ export default function Office() {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
+  const [view, setView] = useState<'floor' | 'building'>('floor');
 
   const active = agents.filter((a) => a.activity !== 'idle').length;
   const menuAgent = agents.find((a) => a.id === menu?.id) ?? null;
@@ -47,6 +48,9 @@ export default function Office() {
     return () => window.removeEventListener('resize', close);
   }, []);
 
+  // close any open agent menu/drawer when switching Floor ↔ Building
+  useEffect(() => { setMenu(null); setDetailId(null); }, [view]);
+
   // follow: keep the camera on the most urgent active agent
   useEffect(() => {
     if (!follow) return;
@@ -56,9 +60,24 @@ export default function Office() {
 
   return (
     <div className="lab-root">
-      <LabGame agents={agents} phase={phase} weather={weather} onAgentClick={onAgentClick} onBackgroundClick={onBackgroundClick} controlsRef={controls} />
+      <LabGame
+        agents={agents}
+        view={view}
+        phase={phase}
+        weather={weather}
+        onAgentClick={onAgentClick}
+        onBackgroundClick={onBackgroundClick}
+        onEnterFloor={() => setView('floor')}
+        controlsRef={controls}
+      />
 
       <div className={`lab-hud phase-${phase}`}>
+        <a className="home" href="/" title="Dashboard" aria-label="Dashboard">⌂</a>
+        <span className="seg">
+          <button className={view === 'floor' ? 'on' : ''} onClick={() => setView('floor')}>Floor</button>
+          <button className={view === 'building' ? 'on' : ''} onClick={() => setView('building')}>Building</button>
+        </span>
+        <span className="sep" />
         <span className="chip" title={`KST ${kst.time} · ${kst.shift}`}>
           <span className="orb" />
           {kst.time}
@@ -66,15 +85,19 @@ export default function Office() {
         <span className="chip" title={`Weather · ${weather}`}>
           <span className="wx">{weatherIcon}</span>
         </span>
-        <span className="chip count">
-          <b>{active}</b>&nbsp;/ {agents.length} active
-        </span>
-        <span className="sep" />
-        <button onClick={() => controls.current?.zoomOut()} title="Zoom out" aria-label="Zoom out">−</button>
-        <button onClick={() => controls.current?.fit()} title="Fit floor" aria-label="Fit">⊡</button>
-        <button onClick={() => controls.current?.zoomIn()} title="Zoom in" aria-label="Zoom in">+</button>
-        <span className="sep" />
-        <button className={follow ? 'on' : ''} onClick={() => setFollow((f) => !f)} title="Follow active" aria-pressed={follow}>◎</button>
+        {view === 'floor' && (
+          <>
+            <span className="chip count">
+              <b>{active}</b>&nbsp;/ {agents.length} active
+            </span>
+            <span className="sep" />
+            <button onClick={() => controls.current?.zoomOut()} title="Zoom out" aria-label="Zoom out">−</button>
+            <button onClick={() => controls.current?.fit()} title="Fit floor" aria-label="Fit">⊡</button>
+            <button onClick={() => controls.current?.zoomIn()} title="Zoom in" aria-label="Zoom in">+</button>
+            <span className="sep" />
+            <button className={follow ? 'on' : ''} onClick={() => setFollow((f) => !f)} title="Follow active" aria-pressed={follow}>◎</button>
+          </>
+        )}
       </div>
 
       {menu && menuAgent && (

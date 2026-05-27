@@ -113,9 +113,6 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     dragMoved = 0;
     last = { x: 0, y: 0 };
     tintRect: any = null;
-    rain: any = null;
-    snow: any = null;
-    clouds: any[] = [];
     doors: { spr: any; x: number; y: number; open: number }[] = [];
     env: { phase: Phase; weather: Weather } = { phase: 'day', weather: 'clear' };
 
@@ -196,53 +193,18 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     }
 
     setupEnv() {
-      // screen-space tint overlay (above the world, below the React HUD)
+      // indoor time-of-day lighting tint (above the world, below the React HUD).
+      // Weather lives in the exterior Building view as real sprites — indoors we
+      // only shift the lighting, so there are no generated weather primitives.
       this.tintRect = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0)
         .setOrigin(0, 0).setScrollFactor(0).setDepth(2_000_000);
-      // generated particle textures — no asset round-trip
-      if (!this.textures.exists('px-rain')) {
-        const g = this.add.graphics();
-        g.fillStyle(0xbcd2e8, 1).fillRect(0, 0, 2, 11); g.generateTexture('px-rain', 2, 11);
-        g.clear(); g.fillStyle(0xffffff, 1).fillCircle(3, 3, 3); g.generateTexture('px-snow', 6, 6);
-        g.destroy();
-      }
     }
 
-    setEnv(phase: Phase, weather: Weather) {
-      this.env = { phase, weather };
+    setEnv(phase: Phase, _weather: Weather) {
+      this.env = { phase, weather: _weather };
+      if (!this.tintRect) return;
       const t = TINT[phase] ?? TINT.day;
-      this.tintRect?.setFillStyle(t.c, t.a);
-
-      const wantRain = weather === 'rain', wantSnow = weather === 'snow';
-      const wantClouds = weather !== 'clear';
-      if (wantRain && !this.rain) {
-        this.rain = this.add.particles(0, -20, 'px-rain', {
-          x: { min: -100, max: 2400 }, y: -20, lifespan: 1300, quantity: 5, frequency: 26,
-          speedY: { min: 680, max: 880 }, speedX: { min: -160, max: -110 },
-          scaleY: { min: 0.7, max: 1.3 }, alpha: { start: 0.55, end: 0.4 },
-        }).setScrollFactor(0).setDepth(2_100_000);
-      }
-      this.rain?.setVisible(wantRain); wantRain ? this.rain?.start() : this.rain?.stop();
-      if (wantSnow && !this.snow) {
-        this.snow = this.add.particles(0, -20, 'px-snow', {
-          x: { min: -50, max: 2400 }, y: -20, lifespan: 6000, quantity: 2, frequency: 90,
-          speedY: { min: 50, max: 110 }, speedX: { min: -40, max: 40 },
-          scale: { min: 0.4, max: 1 }, alpha: { start: 0.9, end: 0.7 }, rotate: { min: 0, max: 360 },
-        }).setScrollFactor(0).setDepth(2_100_000);
-      }
-      this.snow?.setVisible(wantSnow); wantSnow ? this.snow?.start() : this.snow?.stop();
-
-      if (wantClouds && this.clouds.length === 0) this.spawnClouds();
-      this.clouds.forEach((c) => c.setVisible(wantClouds));
-    }
-
-    spawnClouds() {
-      for (let i = 0; i < 4; i++) {
-        const c = this.add.ellipse(200 + i * 360, 120 + (i % 2) * 90, 280, 90, 0xf2f4f8, 0.12)
-          .setScrollFactor(0.15).setDepth(1_900_000);
-        this.tweens.add({ targets: c, x: c.x + 400, duration: 60000 + i * 12000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-        this.clouds.push(c);
-      }
+      this.tintRect.setFillStyle(t.c, t.a);
     }
 
     buildAnims() {
