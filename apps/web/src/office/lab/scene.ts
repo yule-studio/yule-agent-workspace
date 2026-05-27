@@ -22,15 +22,8 @@ export interface SceneCallbacks {
 
 export type Phase = 'dawn' | 'morning' | 'day' | 'sunset' | 'evening' | 'night';
 export type Weather = 'clear' | 'cloudy' | 'rain' | 'snow';
-/** Screen-space tint per KST phase — daytime is neutral, dusk/night darken. */
-const TINT: Record<Phase, { c: number; a: number }> = {
-  dawn: { c: 0x7a6fae, a: 0.2 },
-  morning: { c: 0xffe39a, a: 0.07 },
-  day: { c: 0xffffff, a: 0 },
-  sunset: { c: 0xe6824f, a: 0.18 },
-  evening: { c: 0x28325a, a: 0.34 },
-  night: { c: 0x0f1430, a: 0.48 },
-};
+// Time-of-day / weather are an EXTERIOR (Building View) mood only. The indoor
+// Floor View keeps office-shell-floorplan-v2's original colours — never tinted.
 
 interface SeatSlot {
   x: number;
@@ -112,7 +105,6 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     dragging = false;
     dragMoved = 0;
     last = { x: 0, y: 0 };
-    tintRect: any = null;
     doors: { spr: any; x: number; y: number; open: number }[] = [];
     env: { phase: Phase; weather: Weather } = { phase: 'day', weather: 'clear' };
 
@@ -181,30 +173,19 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       this.buildAnims();
       this.setupCamera(map.widthInPixels, map.heightInPixels);
       this.setupInput();
-      this.setupEnv();
-      this.setEnv(this.env.phase, this.env.weather);
       this.syncAgents(this.agents);
 
-      this.scale.on('resize', () => {
-        this.fitCamera(map.widthInPixels, map.heightInPixels);
-        this.tintRect?.setSize(this.scale.width, this.scale.height);
-      });
+      this.scale.on('resize', () => this.fitCamera(map.widthInPixels, map.heightInPixels));
       this.cb.onReady?.();
     }
 
-    setupEnv() {
-      // indoor time-of-day lighting tint (above the world, below the React HUD).
-      // Weather lives in the exterior Building view as real sprites — indoors we
-      // only shift the lighting, so there are no generated weather primitives.
-      this.tintRect = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0)
-        .setOrigin(0, 0).setScrollFactor(0).setDepth(2_000_000);
-    }
-
-    setEnv(phase: Phase, _weather: Weather) {
-      this.env = { phase, weather: _weather };
-      if (!this.tintRect) return;
-      const t = TINT[phase] ?? TINT.day;
-      this.tintRect.setFillStyle(t.c, t.a);
+    /**
+     * No-op for the Floor View: the indoor office keeps its original asset
+     * colours regardless of time of day — no tint, no overlay, no weather.
+     * (Time-of-day/weather is the Building View's exterior mood; HUD shows time.)
+     */
+    setEnv(phase: Phase, weather: Weather) {
+      this.env = { phase, weather };
     }
 
     buildAnims() {
