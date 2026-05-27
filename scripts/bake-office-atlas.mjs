@@ -60,6 +60,12 @@ const SHEETS = [
             'monitor_dashboard', 'monitor_code', 'monitor_design',
             'monitor_term_1', 'monitor_term_2', 'monitor_term_3', 'monitor_term_4'],
   },
+  {
+    // top row = one door opening (closed → open); bottom row ignored
+    file: 'door-motion.png',
+    det: { thresh: 64, minArea: 9000, minW: 110, minH: 110, mergeGap: 14, rowTol: 140 },
+    names: ['door_0', 'door_1', 'door_2', 'door_3', 'door_4', null, null, null, null, null],
+  },
 ];
 
 const args = process.argv.slice(2);

@@ -111,6 +111,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     rain: any = null;
     snow: any = null;
     clouds: any[] = [];
+    doors: { spr: any; x: number; y: number; open: number }[] = [];
     env: { phase: Phase; weather: Weather } = { phase: 'day', weather: 'clear' };
 
     constructor() {
@@ -156,6 +157,13 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
           name: o.name!, kind: propVal(o, 'kind') ?? '', x: o.x!, y: o.y!, w: o.width!, h: o.height!,
           cx: o.x! + o.width! / 2, cy: o.y! + o.height! / 2,
         };
+      }
+
+      // doors — sit in their wall opening, opened by nearby agents (see update)
+      for (const o of map.getObjectLayer('doors')?.objects ?? []) {
+        if (!this.textures.getFrame('office', 'door_0')) break;
+        const spr = this.add.image(o.x!, o.y!, 'office', 'door_0').setOrigin(0.5, 0.5).setScale(0.22).setDepth(o.y!);
+        this.doors.push({ spr, x: o.x!, y: o.y!, open: 0 });
       }
 
       this.buildAnims();
@@ -368,6 +376,14 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     update(t: number, dt: number) {
       const speed = 0.12 * dt; // px per frame
       const bubbleScale = Phaser.Math.Clamp(1 / this.cameras.main.zoom, 0.7, 1.6);
+
+      // doors open as an agent nears, ease shut otherwise (5-frame swing)
+      for (const d of this.doors) {
+        let near = false;
+        for (const [, c] of this.sprites) if (Math.abs(c.x - d.x) < 70 && Math.abs(c.y - d.y) < 80) { near = true; break; }
+        d.open += ((near ? 1 : 0) - d.open) * Math.min(1, dt / 140);
+        d.spr.setFrame(`door_${Phaser.Math.Clamp(Math.round(d.open * 4), 0, 4)}`);
+      }
       for (const [, c] of this.sprites) {
         const tgt = c.getData('target');
         if (!tgt) continue;
