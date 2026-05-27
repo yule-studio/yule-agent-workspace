@@ -83,7 +83,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       // wet-floor reflection: the building flipped + faded by a gradient mask
       this.reflMask = this.add.image(0, 0, 'refl-grad').setOrigin(0.5, 0).setScrollFactor(0).setVisible(false);
       this.refl = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 0).setFlipY(true).setScrollFactor(0)
-        .setDepth(2).setAlpha(0.13).setTint(0x93a1b2);
+        .setDepth(2).setAlpha(0.17).setTint(0x93a1b2);
       this.refl.setMask(this.reflMask.createBitmapMask());
       // the building, grounded on the sidewalk
       this.bld = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 1).setScrollFactor(0).setDepth(10);
@@ -121,7 +121,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       if (!this.textures.exists('contact-shadow')) {
         const g = this.make.graphics();
         const RW = 220, RH = 64; // stacked ellipses → soft radial alpha (no heavy blur)
-        for (let i = 12; i >= 1; i--) { g.fillStyle(0x0a0e16, 0.055); g.fillEllipse(RW / 2, RH / 2, RW * (i / 12), RH * (i / 12)); }
+        for (let i = 12; i >= 1; i--) { g.fillStyle(0x0a0e16, 0.085); g.fillEllipse(RW / 2, RH / 2, RW * (i / 12), RH * (i / 12)); }
         g.generateTexture('contact-shadow', RW, RH); g.destroy();
       }
       if (!this.textures.exists('bld-fog')) {
@@ -150,9 +150,12 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
         const bx = w * 0.5, baseY = h * 0.93, bw = this.bld.displayWidth, bh = this.bld.displayHeight;
         this.cta.setPosition(bx, baseY - bh * 0.08);
         this.fog?.setDisplaySize(bw * 1.4, bh * 0.78).setPosition(bx, baseY - bh * 0.5);
-        this.shadow?.setDisplaySize(bw * 0.84, Math.max(16, bh * 0.05)).setPosition(bx, baseY - 2);
+        // contact shadow: wider than the base + centred ON the baseline so it
+        // clearly spreads onto the sidewalk (lower half visible below the building)
+        this.shadow?.setDisplaySize(bw * 1.05, Math.max(24, bh * 0.08)).setPosition(bx, baseY + 2);
         if (this.refl) {
-          this.refl.setScale(this.bld.scaleX, this.bld.scaleY * 0.42).setPosition(bx, baseY);
+          // short reflection so it fits the visible ground strip below the base
+          this.refl.setScale(this.bld.scaleX, this.bld.scaleY * 0.22).setPosition(bx, baseY);
           this.reflMask.setDisplaySize(this.refl.displayWidth, this.refl.displayHeight).setPosition(bx, baseY);
         }
       }
