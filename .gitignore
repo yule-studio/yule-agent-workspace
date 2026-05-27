@@ -28,3 +28,4 @@ npm-debug.log*
 
 # office asset-baking debug output
 tmp-atlas-debug/
+tmp-lab-preview.png

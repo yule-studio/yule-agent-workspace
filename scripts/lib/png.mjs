@@ -180,6 +180,33 @@ export function blit(dst, src, dx, dy) {
   }
 }
 
+/** Nearest-neighbour scale by a float factor → new image. */
+export function scaleNearest(img, factor) {
+  const w = Math.max(1, Math.round(img.w * factor));
+  const h = Math.max(1, Math.round(img.h * factor));
+  const out = blankImage(w, h);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(img.h - 1, Math.floor(y / factor));
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(img.w - 1, Math.floor(x / factor));
+      const si = (sy * img.w + sx) * 4, di = (y * w + x) * 4;
+      out.data[di] = img.data[si];
+      out.data[di + 1] = img.data[si + 1];
+      out.data[di + 2] = img.data[si + 2];
+      out.data[di + 3] = img.data[si + 3];
+    }
+  }
+  return out;
+}
+
+/** Fill a solid rectangle (alpha-blended over). */
+export function fillRect(img, x0, y0, w, h, col, alpha = 255) {
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    if (x < 0 || y < 0 || x >= img.w || y >= img.h) continue;
+    setPx(img, x, y, col[0], col[1], col[2], alpha);
+  }
+}
+
 /** Draw a 1px rectangle outline (debug overlays). */
 export function rect(img, x0, y0, x1, y1, col = [255, 40, 40]) {
   const line = (x, y) => { if (x >= 0 && y >= 0 && x < img.w && y < img.h) setPx(img, x, y, col[0], col[1], col[2], 255); };
