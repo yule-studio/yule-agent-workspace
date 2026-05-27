@@ -30,6 +30,14 @@ const PAL = {
   tileA: '#c4c8c2', tileB: '#bbbfb9', tileSeam: '#a9ada7',
   corridor: '#9ba1a9', corridorSeam: '#8b9099',
   wall: '#d4d5ce', wallHi: '#e7e8e1', wallSh: '#a7a89f', wallFace: '#b7b8af', wallFaceSh: '#999a91',
+  // structural wall set: crisp outline vs void → bright lit cap → body → inner
+  // base shadow → baseboard skirting → soft contact shadow onto the floor.
+  wallOut: '#33342e', wallCap: '#eef0e8', wallCap2: '#dfe0d8', wallLip: '#c5c6bd',
+  wallBase: '#9a9b92', baseboard: '#7b7c73', contact: '#0d1118',
+  // cool-gray brick (lower-room material; stays in the no-yellow/brown palette)
+  brick: '#8b9097', brickLt: '#9aa0a7', brickDk: '#727780', mortar: '#666b72',
+  // glass / partition
+  glass: '#b3c5ce', glassHi: '#d8e3e8', glassFrame: '#54606e',
   desk: '#aab0b8', deskHi: '#c2c7ce', deskSh: '#7c828b', deskEdge: '#666c75', grain: '#9aa0a8',
   // material-separated workstation tones: laminate top / dark front / blue-gray
   // fabric partition / dark slate posts / graphite legs (so structure reads).
@@ -156,6 +164,43 @@ function monitor(t, cx, cy, scr) {
   screenUI(t, cx + 4, cy + 3, 26, 18, s, scr % 4);
   t.raw(cx + 4, cy + 3, 26, 2, '#ffffff', 16); // highlight
 }
+// Orientation-aware desk GEAR (monitor + keyboard + mouse), one 64px cell.
+// Keyboard is ALWAYS between the monitor and the agent. Screen UI is never
+// flipped — up-facing seats (screen toward the viewer) get a readable FRONT
+// monitor; down-facing seats (screen toward the agent, away from viewer) get a
+// BACK/TOP monitor with no UI. These are separate sprites, not flips.
+function gearUp(t, scr) {
+  const s = SCREENS[scr % SCREENS.length];
+  // FRONT monitor at the back (top); screen faces the agent below → readable
+  t.raw(22, 33, 20, 3, '#000000', 34); // base contact shadow on desk
+  t.raw(28, 28, 8, 6, PAL.bezel); // stand neck
+  t.raw(23, 32, 18, 3, PAL.bezel); // base
+  t.raw(15, 8, 34, 22, PAL.bezel); // bezel
+  t.raw(15, 8, 34, 3, PAL.bezelHi);
+  screenUI(t, 18, 11, 28, 16, s, scr % 4); // UI upright
+  t.raw(18, 11, 28, 2, '#ffffff', 16);
+  // keyboard in FRONT (toward agent, bottom) + mouse
+  t.raw(16, 45, 34, 2, '#000000', 22);
+  t.raw(16, 39, 30, 7, PAL.key); t.raw(16, 39, 30, 2, PAL.keyDk);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 8; c++) t.raw(19 + c * 3.5, 41 + r * 3, 2, 2, PAL.keyDk);
+  t.raw(48, 41, 6, 6, PAL.key); t.raw(48, 41, 6, 2, PAL.keyDk); // mouse
+}
+function gearDn(t) {
+  // keyboard in FRONT (toward agent above, top) + mouse
+  t.raw(16, 16, 34, 2, '#000000', 22);
+  t.raw(16, 18, 30, 7, PAL.key); t.raw(16, 18, 30, 2, PAL.keyDk);
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 8; c++) t.raw(19 + c * 3.5, 20 + r * 3, 2, 2, PAL.keyDk);
+  t.raw(48, 20, 6, 6, PAL.key); t.raw(48, 20, 6, 2, PAL.keyDk); // mouse
+  // BACK/TOP monitor at the back (bottom, toward shelf) — NO screen UI
+  t.raw(22, 57, 20, 3, '#000000', 32); // base shadow
+  t.raw(28, 52, 8, 6, PAL.metalSh); // stand neck
+  t.raw(23, 56, 18, 3, PAL.metalSh); // base
+  t.raw(15, 33, 34, 20, '#2c323b'); // back panel
+  t.raw(15, 33, 34, 3, '#3a414c'); // top edge
+  t.raw(17, 37, 30, 13, '#252b32'); // inset
+  for (let i = 0; i < 6; i++) t.raw(19 + i * 5, 39, 3, 9, '#2f353d'); // vents
+  t.raw(31, 50, 3, 7, '#1b1f25'); // cable
+}
 // varied screen UI inside a region (output px): code / terminal / dashboard / chat
 function screenUI(t, x, y, w, h, s, ui) {
   t.raw(x, y, w, h, s[0]);
@@ -210,6 +255,179 @@ function plantTD(t, big) {
   }
 }
 
+// ── WALL TILESET (raw 64px) ─────────────────────────────────────────────────
+// Authoring convention: the VOID is to the NORTH (top), the interior FLOOR to
+// the SOUTH (bottom); the corner additionally has VOID to the WEST (left). The
+// MAP places every other edge/corner by FLIP_H / FLIP_V — so a handful of drawn
+// tiles cover all 4 sides + 4 outer corners. Each carries the five layers the
+// brief asks for: dark outline, top cap highlight, side shadow, inner shadow,
+// contact shadow. This is what replaces the one repeated square 'wall' block.
+function wallTop(t) {                              // void = north, floor = south
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, TS, 2, PAL.wallOut);                 // crisp dark edge against the black void
+  t.raw(0, 2, TS, 7, PAL.wallCap);                 // bright lit cap (the thick top of the wall)
+  t.raw(0, 9, TS, 3, PAL.wallCap2);                // cap falloff
+  t.raw(0, 46, TS, 1, PAL.wallLip);                // lit lip just above the base shadow
+  t.raw(0, 47, TS, 8, PAL.wallBase);               // inner base shadow (wall thickness reads)
+  t.raw(0, 55, TS, 2, PAL.baseboard);              // baseboard / skirting line
+  t.raw(0, 57, TS, 7, PAL.contact, 44);            // soft contact shadow onto the floor
+}
+function wallSide(t) {                             // void = west, floor = east
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, 2, TS, PAL.wallOut);
+  t.raw(2, 0, 7, TS, PAL.wallCap);
+  t.raw(9, 0, 3, TS, PAL.wallCap2);
+  t.raw(46, 0, 1, TS, PAL.wallLip);
+  t.raw(47, 0, 8, TS, PAL.wallBase);
+  t.raw(55, 0, 2, TS, PAL.baseboard);
+  t.raw(57, 0, 7, TS, PAL.contact, 44);
+}
+function wallCorner(t) {                            // outer corner: void = north & west
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, TS, 2, PAL.wallOut); t.raw(0, 0, 2, TS, PAL.wallOut);
+  t.raw(0, 2, TS, 7, PAL.wallCap); t.raw(2, 0, 7, TS, PAL.wallCap);
+  t.raw(0, 9, TS, 3, PAL.wallCap2); t.raw(9, 0, 3, TS, PAL.wallCap2);
+  t.raw(2, 2, 9, 9, '#f4f5ee');                    // bright corner nub where lit edges meet
+  t.raw(47, 12, 8, TS - 12, PAL.wallBase);         // right inner shadow
+  t.raw(12, 47, TS - 12, 8, PAL.wallBase);         // bottom inner shadow
+  t.raw(55, 12, 2, TS - 12, PAL.baseboard);
+  t.raw(12, 55, TS - 12, 2, PAL.baseboard);
+  t.raw(57, 12, 7, TS - 12, PAL.contact, 44);
+  t.raw(12, 57, TS - 12, 7, PAL.contact, 44);
+}
+function brickTop(t) {                              // brick exterior (lower rooms); void = north
+  t.raw(0, 0, TS, TS, PAL.brick);
+  t.raw(0, 0, TS, 2, PAL.wallOut);
+  t.raw(0, 2, TS, 4, PAL.brickLt);                 // top lit course
+  for (let by = 8; by < 46; by += 9) {             // staggered brick courses
+    t.raw(0, by, TS, 1, PAL.mortar);               // horizontal mortar
+    const off = ((by / 9) | 0) % 2 ? 0 : 16;
+    for (let bx = off; bx < TS; bx += 32) t.raw(bx, by, 1, 8, PAL.mortar); // vertical mortar
+    t.raw(0, by + 1, TS, 1, PAL.brickLt, 50);
+  }
+  t.raw(0, 48, TS, 1, PAL.wallLip);
+  t.raw(0, 49, TS, 6, PAL.brickDk);                // base shadow
+  t.raw(0, 55, TS, 2, PAL.baseboard);
+  t.raw(0, 57, TS, 7, PAL.contact, 44);
+}
+function pillar(t) {                                // thick freestanding pillar
+  t.raw(8, 59, 48, 5, PAL.contact, 46);            // contact shadow
+  t.raw(10, 3, 44, 57, PAL.wall);
+  t.raw(10, 3, 44, 2, PAL.wallOut);
+  t.raw(10, 5, 44, 5, PAL.wallCap);
+  t.raw(10, 5, 5, 55, PAL.wallCap2);               // lit left
+  t.raw(49, 5, 5, 55, PAL.wallBase);               // shaded right
+  t.raw(10, 53, 44, 7, PAL.wallBase);              // base
+  t.raw(10, 55, 44, 2, PAL.baseboard);
+}
+// interior walls (FLOOR on both sides) — thinner read with a shadow on each edge.
+function iwallH(t) {                                // horizontal divider
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, TS, 6, PAL.contact, 32);             // top contact shadow (room above)
+  t.raw(0, 6, TS, 5, PAL.wallCap);                 // top lit edge
+  t.raw(0, 11, TS, 2, PAL.wallCap2);
+  t.raw(0, 50, TS, 1, PAL.wallLip);
+  t.raw(0, 51, TS, 5, PAL.wallBase);
+  t.raw(0, 56, TS, 8, PAL.contact, 36);            // bottom contact shadow (room below)
+}
+function iwallV(t) {                                // vertical divider
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, 6, TS, PAL.contact, 32);
+  t.raw(6, 0, 5, TS, PAL.wallCap);
+  t.raw(11, 0, 2, TS, PAL.wallCap2);
+  t.raw(50, 0, 1, TS, PAL.wallLip);
+  t.raw(51, 0, 5, TS, PAL.wallBase);
+  t.raw(56, 0, 8, TS, PAL.contact, 36);
+}
+function iwallCorner(t) {                            // interior L-corner (solid bend)
+  // A corner is where walls are full, so it's a solid wall cell lit on the
+  // top+left and shadowed on the bottom+right — it joins iwall_h / iwall_v
+  // cleanly regardless of which two arms connect (the map flips it to suit).
+  t.raw(0, 0, TS, TS, PAL.wall);
+  t.raw(0, 0, TS, 5, PAL.wallCap); t.raw(0, 0, 5, TS, PAL.wallCap); // lit edges
+  t.raw(0, 5, TS, 2, PAL.wallCap2); t.raw(5, 0, 2, TS, PAL.wallCap2);
+  t.raw(0, 0, 7, 7, '#eef0e8');                      // bright corner nub
+  t.raw(0, TS - 7, TS, 7, PAL.contact, 34);          // bottom contact shadow
+  t.raw(TS - 7, 0, 7, TS, PAL.contact, 34);          // right contact shadow
+}
+function jambV(t) {                                  // vertical wall ENDING at bottom (door below)
+  iwallV(t);
+  t.raw(0, TS - 12, TS, 1, PAL.wallLip);
+  t.raw(0, TS - 11, TS, 5, PAL.wallCap);             // bright capped end face
+  t.raw(0, TS - 6, TS, 2, PAL.wallOut);              // outline at the very end
+  t.raw(0, TS - 4, TS, 4, PAL.contact, 36);          // shadow into the threshold
+}
+function jambH(t) {                                  // horizontal wall ENDING at right (door right)
+  iwallH(t);
+  t.raw(TS - 12, 0, 1, TS, PAL.wallLip);
+  t.raw(TS - 11, 0, 5, TS, PAL.wallCap);
+  t.raw(TS - 6, 0, 2, TS, PAL.wallOut);
+  t.raw(TS - 4, 0, 4, TS, PAL.contact, 36);
+}
+function glassH(t) {                                 // glass partition (horizontal run)
+  t.raw(0, 22, TS, 3, PAL.glassFrame);               // top rail
+  t.raw(0, 25, TS, 14, PAL.glass, 150);              // translucent glass band
+  for (let x = 5; x < TS; x += 15) t.raw(x, 26, 3, 12, PAL.glassHi, 110); // streak reflections
+  t.raw(0, 39, TS, 3, PAL.glassFrame);               // bottom rail
+  t.raw(0, 24, TS, 1, PAL.contact, 24);
+}
+function glassV(t) {                                 // glass partition (vertical run)
+  t.raw(22, 0, 3, TS, PAL.glassFrame);
+  t.raw(25, 0, 14, TS, PAL.glass, 150);
+  for (let y = 5; y < TS; y += 15) t.raw(26, y, 12, 3, PAL.glassHi, 110);
+  t.raw(39, 0, 3, TS, PAL.glassFrame);
+  t.raw(24, 0, 1, TS, PAL.contact, 24);
+}
+function threshold(t, vertical) {                    // doorway floor: passage strip + jamb shadows
+  t.fill(PAL.corridor);
+  if (vertical) { t.raw(0, 0, TS, 4, PAL.contact, 30); t.raw(0, TS - 4, TS, 4, PAL.contact, 30); t.raw(0, TS / 2 - 1, TS, 2, PAL.tileSeam); }
+  else { t.raw(0, 0, 4, TS, PAL.contact, 30); t.raw(TS - 4, 0, 4, TS, PAL.contact, 30); t.raw(TS / 2 - 1, 0, 2, TS, PAL.tileSeam); }
+}
+// wall-mounted props (objects layer, mounted on the top/right wall row)
+function acUnit(t) {                                 // air conditioner
+  t.raw(8, 26, 48, 4, PAL.contact, 26);
+  t.raw(6, 4, 52, 22, '#e9ebe4');
+  t.raw(6, 4, 52, 4, '#f6f7f1');
+  t.raw(6, 22, 52, 4, '#bcbdb4');
+  for (let i = 0; i < 9; i++) t.raw(11 + i * 5, 12, 3, 8, '#adb0a8'); // vent louvres
+  t.raw(50, 7, 4, 3, PAL.sage);                      // status LED
+}
+function wallClock(t) {
+  t.raw(20, 6, 24, 24, '#2c323b');                   // dark rim
+  t.raw(22, 8, 20, 20, '#eef0f4');                   // face
+  t.raw(31, 11, 2, 8, PAL.ink);                      // hour hand
+  t.raw(31, 17, 7, 2, PAL.coral);                    // minute hand
+  t.raw(30, 16, 4, 4, PAL.ink);                      // hub
+}
+function wallSign(t) {
+  t.raw(16, 22, 32, 3, PAL.contact, 22);
+  t.raw(16, 8, 32, 14, PAL.metal);
+  t.raw(16, 8, 32, 2, PAL.metalHi);
+  t.raw(20, 12, 24, 2, PAL.lav);
+  t.raw(20, 16, 16, 2, PAL.sage);
+}
+function conduit(t) {                                // vertical cable conduit running down the wall
+  t.raw(28, 0, 8, TS, PAL.metalSh);
+  t.raw(28, 0, 2, TS, PAL.metalHi);
+  t.raw(34, 0, 2, TS, '#23272f');
+  for (let y = 6; y < TS; y += 13) t.raw(26, y, 12, 2, '#262c34'); // clamps
+}
+function wallShelf(t) {
+  t.raw(6, 18, 52, 2, PAL.contact, 30);              // under-shelf shadow
+  t.raw(6, 14, 52, 4, '#727a85');                    // shelf board
+  t.raw(6, 14, 52, 1, '#8b939e');
+  const sp = [PAL.lav, PAL.sage, PAL.coral, PAL.box, PAL.plum, PAL.lav2];
+  for (let i = 0; i < 6; i++) t.raw(9 + i * 8, 4, 6, 10, sp[i]); // boxes / books on the shelf
+}
+function wallChart(t) {                              // framed line chart
+  t.raw(8, 22, 48, 3, PAL.contact, 22);
+  t.raw(8, 4, 48, 24, '#2c323b');                    // frame
+  t.raw(10, 6, 44, 20, '#e8eaef');                   // paper
+  t.raw(13, 23, 38, 1, PAL.paperLn);                 // axis
+  let py = 20;
+  for (let x = 0; x < 36; x += 4) { const ny = 10 + ((x * 5 + 7) % 11); t.raw(13 + x, Math.min(py, ny), 2, 2, PAL.coral); py = ny; }
+}
+
 // ── TILE REGISTRY — order defines the gid (index 0 -> gid 1) ────────────────
 const TILES = [
   // floors (fully opaque)
@@ -223,6 +441,30 @@ const TILES = [
   ['wall', (t) => { t.fill(PAL.wall); t.r(0, 0, DS, 3, PAL.wallHi); t.r(0, DS - 3, DS, 3, PAL.wallSh); t.r(0, 0, 3, DS, PAL.wallHi); t.r(DS - 3, 0, 3, DS, PAL.wallSh); }],
   ['wall_face', (t) => { t.fill(PAL.wallFace); t.r(0, 0, DS, 4, PAL.wall); t.r(0, 0, DS, 2, PAL.wallHi); t.r(0, DS - 2, DS, 2, PAL.wallFaceSh); for (let x = 2; x < DS; x += 8) t.r(x, 5, 1, DS - 7, PAL.wallFaceSh); }],
   ['wall_inner', (t) => { t.fill('#8a8f98'); t.r(0, 0, DS, 3, '#a8adb4'); t.r(0, DS - 3, DS, 3, '#5f656e'); t.r(0, 0, 3, DS, '#9aa0a8'); t.r(DS - 3, 0, 3, DS, '#646a73'); }],
+  // ── structural wall set (segment-based; map flips → all sides/corners) ──
+  // exterior (one void side); FLIP_V → bottom wall, FLIP_H → right wall.
+  ['wall_top', wallTop],
+  ['wall_side', wallSide],
+  ['wall_corner', wallCorner],   // outer corner (void N+W); flips → NE/SW/SE
+  ['brick_top', brickTop],       // brick exterior variant (lower rooms)
+  ['pillar', pillar],            // thick freestanding pillar
+  // interior dividers (floor both sides)
+  ['iwall_h', iwallH],
+  ['iwall_v', iwallV],
+  ['iwall_corner', iwallCorner], // L-corner (arms E+S); flips → other 3
+  ['jamb_v', jambV],             // vertical wall capped at bottom (door below); FLIP_V → cap top
+  ['jamb_h', jambH],             // horizontal wall capped at right (door right); FLIP_H → cap left
+  ['glass_h', glassH],           // glass partition (horizontal run)
+  ['glass_v', glassV],
+  ['threshold_v', (t) => threshold(t, true)],  // doorway floor, vertical-wall opening
+  ['threshold_h', (t) => threshold(t, false)],
+  // wall-mounted props (objects layer)
+  ['ac_unit', acUnit],
+  ['wall_clock', wallClock],
+  ['wall_sign', wallSign],
+  ['conduit', conduit],
+  ['wall_shelf', wallShelf],
+  ['wall_chart', wallChart],
   // partitions (cubicle dividers)
   ['part_h', (t) => { t.r(0, 11, DS, 8, PAL.metal); t.r(0, 11, DS, 2, PAL.metalHi); t.r(0, 17, DS, 2, PAL.metalSh); t.r(0, 19, DS, 2, '#000000', 26); }],
   ['part_v', (t) => { t.r(12, 0, 8, DS, PAL.metal); t.r(12, 0, 2, DS, PAL.metalHi); t.r(18, 0, 2, DS, PAL.metalSh); t.r(20, 0, 2, DS, '#000000', 26); }],
@@ -242,6 +484,11 @@ const TILES = [
   ['monitor_b', (t) => monitor(t, 16, 11, 1)],
   ['monitor_c', (t) => monitor(t, 16, 11, 2)],
   ['monitor_d', (t) => monitor(t, 16, 11, 5)],
+  // orientation-aware pod gear (monitor + keyboard) — NEVER flipped
+  ['gear_up_a', (t) => gearUp(t, 0)],
+  ['gear_up_b', (t) => gearUp(t, 3)],
+  ['gear_up_c', (t) => gearUp(t, 5)],
+  ['gear_dn', (t) => gearDn(t)],
   ['monitor_dual', (t) => { t.raw(6, 34, 52, 3, '#000000', 32); t.raw(26, 30, 12, 4, PAL.bezel); t.raw(18, 34, 28, 3, PAL.bezel); t.raw(2, 4, 28, 24, PAL.bezel); t.raw(2, 4, 28, 3, PAL.bezelHi); screenUI(t, 4, 7, 24, 18, SCREENS[0], 0); t.raw(34, 4, 28, 24, PAL.bezel); t.raw(34, 4, 28, 3, PAL.bezelHi); screenUI(t, 36, 7, 24, 18, SCREENS[3], 2); }],
   ['monitor_vert', (t) => { t.raw(20, 44, 24, 3, '#000000', 32); t.raw(28, 38, 8, 6, PAL.bezel); t.raw(22, 44, 20, 3, PAL.bezel); t.raw(18, 2, 28, 38, PAL.bezel); t.raw(18, 2, 28, 3, PAL.bezelHi); screenUI(t, 20, 5, 24, 32, SCREENS[1], 1); }],
   ['monitor_large', (t) => { t.raw(4, 32, 56, 3, '#000000', 34); t.raw(28, 28, 8, 5, PAL.bezel); t.raw(16, 32, 32, 3, PAL.bezel); t.raw(2, 2, 60, 26, PAL.bezel); t.raw(2, 2, 60, 3, PAL.bezelHi); screenUI(t, 5, 5, 54, 20, SCREENS[3], 2); }],

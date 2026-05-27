@@ -609,10 +609,21 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 13%; /* base meets the sidewalk */
+  padding-bottom: 8.8%; /* anchor the lobby doors onto the foreground sidewalk */
 }
-.scene-building .facade-wrap { width: 100%; height: 86%; padding: 0; background: none; }
-.scene-building .facade { height: 100%; }
+.scene-building .facade-wrap {
+  width: 100%;
+  height: 88%;
+  padding: 0;
+  background: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+.scene-building .facade {
+  width: min(58vw, 780px);
+  height: auto;
+  max-height: 100%;
+}
 
 /* ── ground: sidewalk + curb + road the HQ stands on ── */
 .scene-ground {
@@ -636,6 +647,15 @@
     linear-gradient(180deg, #4c525c 0%, #41464f 100%);
 }
 .gr-walk::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #5a616b; } /* back edge */
+.gr-walk::after {
+  content: '';
+  position: absolute;
+  left: 34%;
+  right: 34%;
+  top: 0;
+  height: 7px;
+  background: linear-gradient(180deg, rgba(17, 20, 25, 0.42), rgba(17, 20, 25, 0));
+}
 .gr-curb { position: absolute; left: 0; right: 0; top: 62%; height: 6%; background: linear-gradient(180deg, #646b76, #3a3f47); }
 .gr-road { position: absolute; left: 0; right: 0; bottom: 0; height: 32%; background: linear-gradient(180deg, #23272f, #171b21); }
 .gr-lane { position: absolute; left: 0; right: 0; top: 50%; height: 3px; opacity: 0.65; background: repeating-linear-gradient(90deg, #5d6470 0 22px, transparent 22px 50px); }
@@ -643,12 +663,12 @@
 /* soft contact shadow under the HQ base (grounds it on the sidewalk) */
 .scene-shadow {
   position: absolute;
-  left: 17%;
-  right: 17%;
-  bottom: 13.5%;
-  height: 26px;
+  left: 31%;
+  right: 31%;
+  bottom: 14.3%;
+  height: 22px;
   z-index: 2;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.26) 46%, transparent 72%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.22) 48%, transparent 74%);
 }
 
 /* ── foreground street furniture, standing on the sidewalk in front of the HQ ── */
