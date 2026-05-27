@@ -49,6 +49,7 @@ interface Poi {
 
 const ATLAS = '/assets/yule-office/atlas';
 const VENDOR = '/vendor/yule-office';
+const FLOOR_BG = '/assets/yule-office/office-shell-floorplan-v2.png'; // single floor base image
 const SKINS = 18;
 const AGENT_SCALE = 0.42;  // walking / standing sprite
 const WS_SCALE = 0.82;     // seated-at-desk composite
@@ -119,7 +120,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     }
 
     preload() {
-      this.load.image('tiles', `${VENDOR}/tiles.png`);
+      this.load.image('floorplan', FLOOR_BG);
       this.load.tilemapTiledJSON('lab', `${VENDOR}/yule-agent-lab.tmj`);
       this.load.atlas('office', `${ATLAS}/office-objects.png`, `${ATLAS}/office-objects.json`);
       this.load.atlas('agents', `${ATLAS}/agents.png`, `${ATLAS}/agents.json`);
@@ -128,9 +129,10 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
 
     create() {
       const map = this.make.tilemap({ key: 'lab' });
-      const ts = map.addTilesetImage('lab', 'tiles')!;
-      map.createLayer('floor', ts, 0, 0)!.setDepth(-1000);
-      map.createLayer('walls', ts, 0, 0)!.setDepth(-500);
+      // The ONLY floor/wall/background visual is office-shell-floorplan-v2.png,
+      // stretched to the world so object coordinates fall inside its rooms.
+      // No procedural floor/wall tile layers are drawn (the tmj is metadata only).
+      this.add.image(0, 0, 'floorplan').setOrigin(0, 0).setDisplaySize(map.widthInPixels, map.heightInPixels).setDepth(-1000);
 
       // furniture, depth-sorted by base-y (+ z bias)
       const furn = map.getObjectLayer('furniture')?.objects ?? [];

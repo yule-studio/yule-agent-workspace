@@ -14,7 +14,7 @@ Re-bake with:
 node scripts/bake-office-atlas.mjs   # atlas/office-objects.{png,json}
 node scripts/bake-agents.mjs         # atlas/agents.{png,json} + workstations.{png,json}
 node scripts/bake-exterior.mjs       # atlas/exterior.{png,json}
-node scripts/gen-lab-map.mjs         # ../../vendor/yule-office/{tiles.png,yule-agent-lab.tmj}
+node scripts/gen-lab-map.mjs         # publish floor base image + ../../vendor/yule-office/yule-agent-lab.tmj (object-only)
 ```
 
 ## Runtime atlases (shipped)
@@ -34,10 +34,14 @@ node scripts/gen-lab-map.mjs         # ../../vendor/yule-office/{tiles.png,yule-
 
 ## Source assets — used vs. reference-only
 
-**Layout source of truth (traced, not rendered whole):**
-- `office-shell-floorplan-v2.png` — the floor structure. `scripts/analyze-floorplan.mjs`
-  classifies it into a tile grid; `scripts/gen-lab-map.mjs` authors the runtime
-  Tiled map (`vendor/yule-office/yule-agent-lab.tmj`) from those coordinates.
+**Floor View base image (rendered whole — the only floor/wall visual):**
+- `office-shell-floorplan-v2.png` — copied to `assets/yule-office/` by
+  `scripts/gen-lab-map.mjs` and loaded by the runtime (`office/lab/scene.ts`) as
+  the single base layer, stretched to the world so furniture/agent coordinates
+  fall inside its rooms. The walls/floor/rooms/windows/corridor all live in this
+  image; the Tiled map (`vendor/yule-office/yule-agent-lab.tmj`) is **object-only
+  metadata** (seats/pois/spawns/doors/collisions) — no floor/wall tile layers.
+  `scripts/analyze-floorplan.mjs` was used to derive the zone coordinates.
 
 **Baked into runtime atlases (actually used):**
 - `desk-ai-engineer-backend-devops.png`, `desk-analyst-product-designer.png` → desks/chairs
