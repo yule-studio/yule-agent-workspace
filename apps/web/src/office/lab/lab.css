@@ -23,6 +23,7 @@
 .lab-hud button:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 .lab-hud button.on { background: #3b82f6; color: #fff; }
 .lab-hud .count b { color: #7ee0a8; }
+.lab-hud .wx { font-size: 14px; line-height: 1; }
 
 /* phase tints on the HUD orb */
 .phase-dawn .orb { background: #cbbce0; }

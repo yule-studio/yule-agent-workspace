@@ -7,6 +7,7 @@
  */
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import type { AgentView } from '@yule/shared-types';
+import type { Phase, Weather } from '@/office/useKst';
 
 export interface LabControls {
   zoomIn: () => void;
@@ -17,11 +18,15 @@ export interface LabControls {
 
 export function LabGame({
   agents,
+  phase = 'day',
+  weather = 'clear',
   onAgentClick,
   onBackgroundClick,
   controlsRef,
 }: {
   agents: AgentView[];
+  phase?: Phase;
+  weather?: Weather;
   onAgentClick?: (agentId: string, clientX: number, clientY: number) => void;
   onBackgroundClick?: () => void;
   controlsRef?: Ref<LabControls>;
@@ -31,6 +36,8 @@ export function LabGame({
   const sceneRef = useRef<any>(null);
   const readyRef = useRef(false);
   const agentsRef = useRef(agents);
+  const envRef = useRef({ phase, weather });
+  envRef.current = { phase, weather };
   const cbRef = useRef({ onAgentClick, onBackgroundClick });
   cbRef.current = { onAgentClick, onBackgroundClick };
 
@@ -62,6 +69,7 @@ export function LabGame({
       });
       gameRef.current = game;
       game.registry.set('agents', agentsRef.current);
+      game.registry.set('env', envRef.current);
       game.registry.set('cb', {
         onAgentClick: (id: string, x: number, y: number) => cbRef.current.onAgentClick?.(id, x, y),
         onBackgroundClick: () => cbRef.current.onBackgroundClick?.(),
@@ -85,6 +93,10 @@ export function LabGame({
     agentsRef.current = agents;
     if (readyRef.current && sceneRef.current) sceneRef.current.syncAgents(agents);
   }, [agents]);
+
+  useEffect(() => {
+    if (readyRef.current && sceneRef.current) sceneRef.current.setEnv(phase, weather);
+  }, [phase, weather]);
 
   return <div ref={hostRef} className="lab-canvas" />;
 }

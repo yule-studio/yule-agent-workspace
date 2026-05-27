@@ -9,7 +9,7 @@ import { useAgents } from '@/lib/live';
 import { SessionPanel } from '@/components/SessionPanel';
 import { StateBadge } from '@/components/StateBadge';
 import { LabGame, type LabControls } from '@/office/lab/LabGame';
-import { useKst } from '@/office/useKst';
+import { useKst, useWeather, type Phase, type Weather } from '@/office/useKst';
 import { AGENT_ROLE_LABEL } from '@yule/shared-types';
 import '@/office/lab/lab.css';
 
@@ -17,6 +17,16 @@ export default function Office() {
   const { data } = useAgents();
   const agents = useMemo(() => data?.agents ?? [], [data]);
   const kst = useKst();
+  const wx = useWeather();
+  // optional ?phase=&weather= preview override (read after mount → no SSR drift)
+  const [override, setOverride] = useState<{ phase?: Phase; weather?: Weather }>({});
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    setOverride({ phase: (q.get('phase') as Phase) || undefined, weather: (q.get('weather') as Weather) || undefined });
+  }, []);
+  const phase = override.phase ?? kst.phase;
+  const weather = override.weather ?? wx.weather;
+  const weatherIcon = wx.icon;
   const controls = useRef<LabControls>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -46,12 +56,15 @@ export default function Office() {
 
   return (
     <div className="lab-root">
-      <LabGame agents={agents} onAgentClick={onAgentClick} onBackgroundClick={onBackgroundClick} controlsRef={controls} />
+      <LabGame agents={agents} phase={phase} weather={weather} onAgentClick={onAgentClick} onBackgroundClick={onBackgroundClick} controlsRef={controls} />
 
-      <div className={`lab-hud phase-${kst.phase}`}>
+      <div className={`lab-hud phase-${phase}`}>
         <span className="chip" title={`KST ${kst.time} · ${kst.shift}`}>
           <span className="orb" />
           {kst.time}
+        </span>
+        <span className="chip" title={`Weather · ${weather}`}>
+          <span className="wx">{weatherIcon}</span>
         </span>
         <span className="chip count">
           <b>{active}</b>&nbsp;/ {agents.length} active

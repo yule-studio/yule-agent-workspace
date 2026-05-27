@@ -20,6 +20,18 @@ export interface SceneCallbacks {
   onBackgroundClick?: () => void;
 }
 
+export type Phase = 'dawn' | 'morning' | 'day' | 'sunset' | 'evening' | 'night';
+export type Weather = 'clear' | 'cloudy' | 'rain' | 'snow';
+/** Screen-space tint per KST phase — daytime is neutral, dusk/night darken. */
+const TINT: Record<Phase, { c: number; a: number }> = {
+  dawn: { c: 0x7a6fae, a: 0.2 },
+  morning: { c: 0xffe39a, a: 0.07 },
+  day: { c: 0xffffff, a: 0 },
+  sunset: { c: 0xe6824f, a: 0.18 },
+  evening: { c: 0x28325a, a: 0.34 },
+  night: { c: 0x0f1430, a: 0.48 },
+};
+
 interface SeatSlot {
   x: number;
   y: number;
@@ -42,7 +54,7 @@ interface Poi {
 const ATLAS = '/assets/yule-office/atlas';
 const VENDOR = '/vendor/yule-office';
 const SKINS = 18;
-const AGENT_SCALE = 0.34;
+const AGENT_SCALE = 0.42;
 
 const propVal = (o: any, name: string) => o.properties?.find((p: any) => p.name === name)?.value;
 
@@ -95,6 +107,11 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     dragging = false;
     dragMoved = 0;
     last = { x: 0, y: 0 };
+    tintRect: any = null;
+    rain: any = null;
+    snow: any = null;
+    clouds: any[] = [];
+    env: { phase: Phase; weather: Weather } = { phase: 'day', weather: 'clear' };
 
     constructor() {
       super('lab');
@@ -103,6 +120,7 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
     init() {
       this.cb = (this.game.registry.get('cb') as SceneCallbacks) ?? {};
       this.agents = (this.game.registry.get('agents') as AgentView[]) ?? [];
+      this.env = (this.game.registry.get('env') as { phase: Phase; weather: Weather }) ?? this.env;
     }
 
     preload() {
@@ -143,10 +161,65 @@ export function makeLabScene(Phaser: typeof import('phaser')) {
       this.buildAnims();
       this.setupCamera(map.widthInPixels, map.heightInPixels);
       this.setupInput();
+      this.setupEnv();
+      this.setEnv(this.env.phase, this.env.weather);
       this.syncAgents(this.agents);
 
-      this.scale.on('resize', () => this.fitCamera(map.widthInPixels, map.heightInPixels));
+      this.scale.on('resize', () => {
+        this.fitCamera(map.widthInPixels, map.heightInPixels);
+        this.tintRect?.setSize(this.scale.width, this.scale.height);
+      });
       this.cb.onReady?.();
+    }
+
+    setupEnv() {
+      // screen-space tint overlay (above the world, below the React HUD)
+      this.tintRect = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0)
+        .setOrigin(0, 0).setScrollFactor(0).setDepth(2_000_000);
+      // generated particle textures — no asset round-trip
+      if (!this.textures.exists('px-rain')) {
+        const g = this.add.graphics();
+        g.fillStyle(0xbcd2e8, 1).fillRect(0, 0, 2, 11); g.generateTexture('px-rain', 2, 11);
+        g.clear(); g.fillStyle(0xffffff, 1).fillCircle(3, 3, 3); g.generateTexture('px-snow', 6, 6);
+        g.destroy();
+      }
+    }
+
+    setEnv(phase: Phase, weather: Weather) {
+      this.env = { phase, weather };
+      const t = TINT[phase] ?? TINT.day;
+      this.tintRect?.setFillStyle(t.c, t.a);
+
+      const wantRain = weather === 'rain', wantSnow = weather === 'snow';
+      const wantClouds = weather !== 'clear';
+      if (wantRain && !this.rain) {
+        this.rain = this.add.particles(0, -20, 'px-rain', {
+          x: { min: -100, max: 2400 }, y: -20, lifespan: 1300, quantity: 5, frequency: 26,
+          speedY: { min: 680, max: 880 }, speedX: { min: -160, max: -110 },
+          scaleY: { min: 0.7, max: 1.3 }, alpha: { start: 0.55, end: 0.4 },
+        }).setScrollFactor(0).setDepth(2_100_000);
+      }
+      this.rain?.setVisible(wantRain); wantRain ? this.rain?.start() : this.rain?.stop();
+      if (wantSnow && !this.snow) {
+        this.snow = this.add.particles(0, -20, 'px-snow', {
+          x: { min: -50, max: 2400 }, y: -20, lifespan: 6000, quantity: 2, frequency: 90,
+          speedY: { min: 50, max: 110 }, speedX: { min: -40, max: 40 },
+          scale: { min: 0.4, max: 1 }, alpha: { start: 0.9, end: 0.7 }, rotate: { min: 0, max: 360 },
+        }).setScrollFactor(0).setDepth(2_100_000);
+      }
+      this.snow?.setVisible(wantSnow); wantSnow ? this.snow?.start() : this.snow?.stop();
+
+      if (wantClouds && this.clouds.length === 0) this.spawnClouds();
+      this.clouds.forEach((c) => c.setVisible(wantClouds));
+    }
+
+    spawnClouds() {
+      for (let i = 0; i < 4; i++) {
+        const c = this.add.ellipse(200 + i * 360, 120 + (i % 2) * 90, 280, 90, 0xf2f4f8, 0.12)
+          .setScrollFactor(0.15).setDepth(1_900_000);
+        this.tweens.add({ targets: c, x: c.x + 400, duration: 60000 + i * 12000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        this.clouds.push(c);
+      }
     }
 
     buildAnims() {

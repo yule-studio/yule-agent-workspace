@@ -56,3 +56,28 @@ export function useKst(): Kst {
   }, []);
   return kst;
 }
+
+export type Weather = 'clear' | 'cloudy' | 'rain' | 'snow';
+const WEATHER_ICON: Record<Weather, string> = { clear: '☀', cloudy: '☁', rain: '🌧', snow: '❄' };
+
+/** Deterministic mock weather — stable per day, winter-biased toward snow. */
+function computeWeather(): Weather {
+  const now = new Date();
+  const doy = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000);
+  const month = now.getMonth();
+  const r = ((doy * 2654435761) >>> 0) % 100;
+  if ((month === 11 || month <= 1) && r < 32) return 'snow';
+  if (r < 18) return 'rain';
+  if (r < 48) return 'cloudy';
+  return 'clear';
+}
+
+export function useWeather(): { weather: Weather; icon: string } {
+  const [weather, setWeather] = useState<Weather>('clear');
+  useEffect(() => {
+    setWeather(computeWeather());
+    const id = setInterval(() => setWeather(computeWeather()), 600_000);
+    return () => clearInterval(id);
+  }, []);
+  return { weather, icon: WEATHER_ICON[weather] };
+}
