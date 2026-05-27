@@ -67,10 +67,19 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       this.cameras.main.setBackgroundColor('#0d1322');
       this.skyFill = this.add.rectangle(0, 0, 10, 10, 0x9ec9e8).setOrigin(0, 0).setScrollFactor(0).setDepth(-2);
       this.sky = this.add.image(0, 0, 'ext', 'sky_2').setOrigin(0.5, 1).setScrollFactor(0).setDepth(0);
-      if (this.textures.getFrame('ext', 'sun')) this.sun = this.add.image(0, 0, 'ext', 'sun').setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(1);
+      // sun/moon: soft, in the sky depth — not a sharp UI icon
+      if (this.textures.getFrame('ext', 'sun')) this.sun = this.add.image(0, 0, 'ext', 'sun').setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(1).setAlpha(0.92);
+      // separate cloud LAYER over the full background — small multi-depth sprites
+      // (far = small/slow, near = a little bigger, never larger than the building)
+      const DEPTHS = [
+        { sf: 0.07, spd: 0.004, cy: 0.1, fx: 0.16 },
+        { sf: 0.1, spd: 0.007, cy: 0.17, fx: 0.36 },
+        { sf: 0.12, spd: 0.011, cy: 0.23, fx: 0.64 },
+        { sf: 0.085, spd: 0.006, cy: 0.13, fx: 0.9 },
+      ];
       ['cloud_a', 'cloud_b', 'cloud_c', 'cloud_d'].filter((n) => this.textures.getFrame('ext', n)).forEach((n, i) => {
-        const c = this.add.image(0, 0, 'ext', n).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(6).setAlpha(0.9);
-        c.setData('lane', i); c.setData('gray', n); this.clouds.push(c);
+        const c = this.add.image(0, 0, 'ext', n).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(6).setAlpha(0.85);
+        c.setData('d', DEPTHS[i % DEPTHS.length]); c.setData('gray', n); this.clouds.push(c);
       });
       // ground: road (back) + sidewalk + curb highlight
       this.road = this.add.rectangle(0, 0, 10, 10, 0x23262c).setOrigin(0, 0).setScrollFactor(0).setDepth(3);
@@ -108,9 +117,9 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       const groundH = h - baseY;
       this.skyFill.setPosition(0, 0).setSize(w, baseY + 2);
 
-      // sky/skyline band: uniform cover scale, bottom (railing) at the baseline
-      const stripH = h * 0.42;
-      const sScale = Math.max(w / this.sky.width, stripH / this.sky.height);
+      // full background image: fit width so the WHOLE sky/skyline shows (no crop),
+      // railing/foreground at the baseline; skyFill colours the area above it.
+      const sScale = w / this.sky.width;
       this.sky.setScale(sScale).setPosition(w / 2, baseY + 1);
 
       // ground bands
@@ -129,8 +138,11 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       });
 
       // sky elements (modest, above the skyline band)
-      this.sun?.setScale((unit * 1.0) / this.sun.height).setPosition(w * 0.76, h * 0.16);
-      this.clouds.forEach((c, i) => c.setScale((w * 0.2) / c.width).setPosition(w * (0.18 + i * 0.22), h * (0.12 + (i % 2) * 0.08)));
+      this.sun?.setScale((unit * 0.72) / this.sun.height).setPosition(w * 0.78, h * 0.15);
+      this.clouds.forEach((c) => {
+        const d = c.getData('d');
+        c.setScale((w * d.sf) / c.width).setPosition(w * d.fx, h * d.cy);
+      });
       this.rain.setSize(w, h); this.snow.setSize(w, h);
 
       // CTA at the door (lower third of the facade)
@@ -163,7 +175,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       if (this.snow.visible) { this.snow.tilePositionY -= dt * 0.18; this.snow.tilePositionX += dt * 0.04; }
       const w = this.scale.width;
       for (const c of this.clouds) {
-        c.x += dt * 0.006 * (1 + (c.getData('lane') % 2) * 0.4);
+        c.x += dt * c.getData('d').spd; // depth-based drift; base background stays put
         if (c.x - c.displayWidth / 2 > w) c.x = -c.displayWidth / 2;
       }
     }
