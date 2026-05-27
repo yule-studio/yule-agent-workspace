@@ -40,6 +40,16 @@ export function BuildingScene({
       <Clouds />
       <Skyline night={night} />
       <PowerPole />
+      {/* ground: a layered sidewalk + curb + road the HQ stands on */}
+      <div className="scene-ground">
+        <div className="gr-walk" />
+        <div className="gr-curb" />
+        <div className="gr-road">
+          <span className="gr-lane" />
+        </div>
+      </div>
+      {/* soft contact shadow grounds the building onto the sidewalk */}
+      <div className="scene-shadow" />
       <div className="scene-building">
         <BuildingFacade
           building={building}
@@ -50,10 +60,13 @@ export function BuildingScene({
           onHover={onHover}
         />
       </div>
-      <div className="scene-street">
-        <span className="lamp" />
-        <span className="bush" />
-        <span className="bush b2" />
+      {/* foreground street furniture on the sidewalk, in front of the HQ */}
+      <div className="scene-props">
+        <span className={`st-lamp ${night ? 'on' : ''}`} />
+        <span className="st-planter p1" />
+        <span className="st-planter p2" />
+        <span className="st-hydrant" />
+        <span className="st-bench" />
       </div>
     </div>
   );
