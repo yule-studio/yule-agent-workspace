@@ -25,3 +25,6 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# office asset-baking debug output
+tmp-atlas-debug/
