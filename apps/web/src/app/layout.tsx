@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import '../office/office.css';
 import { Shell } from '@/components/Shell';
 
 export const viewport: Viewport = {

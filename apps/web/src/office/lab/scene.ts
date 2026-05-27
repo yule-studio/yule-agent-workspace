@@ -1,0 +1,259 @@
+/**
+ * Yule Agent Lab — the Phaser scene factory.
+ *
+ * Phaser touches `window` at import time, so this module never imports it
+ * statically: the client wrapper passes the loaded Phaser namespace into
+ * `makeLabScene(Phaser)`, which returns a Scene subclass. That keeps Next's
+ * server render free of any Phaser reference.
+ *
+ * The scene loads the Tiled map + the two baked atlases, renders the floor and
+ * wall tile layers, places furniture from the `furniture` object layer (depth
+ * sorted by base-y), and binds live agents onto seats, moving them between
+ * zones as their activity changes. React owns only the HUD/overlay; everything
+ * spatial lives here.
+ */
+import type { AgentView } from '@yule/shared-types';
+
+export interface SceneCallbacks {
+  onAgentClick?: (agentId: string, clientX: number, clientY: number) => void;
+  onReady?: () => void;
+  onBackgroundClick?: () => void;
+}
+
+interface SeatSlot {
+  x: number;
+  y: number;
+  role: string;
+  facing: 'up' | 'down';
+  zone: string;
+  taken?: string | null;
+}
+interface Poi {
+  name: string;
+  kind: string;
+  cx: number;
+  cy: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const ATLAS = '/assets/yule-office/atlas';
+const VENDOR = '/vendor/yule-office';
+const SKINS = 18;
+const AGENT_SCALE = 0.34;
+
+const propVal = (o: any, name: string) => o.properties?.find((p: any) => p.name === name)?.value;
+
+/** Which poi an activity sends the agent to (else it stays at its desk). */
+function zoneForActivity(a: AgentView): string | null {
+  switch (a.activity) {
+    case 'meeting': return 'standup';
+    case 'reviewing': return 'review-table';
+    case 'planning': return 'planning-area';
+    case 'waiting': return 'lounge';
+    default: return null; // coding / reading / running / blocked / idle / done → desk
+  }
+}
+
+export function makeLabScene(Phaser: typeof import('phaser')) {
+  return class LabScene extends Phaser.Scene {
+    cb: SceneCallbacks = {};
+    agents: AgentView[] = [];
+    seats: SeatSlot[] = [];
+    pois: Record<string, Poi> = {};
+    sprites = new Map<string, any>(); // agentId → container {sprite, bubble, ...}
+    assigned = new Map<string, SeatSlot>();
+    minZoom = 0.4;
+    dragging = false;
+    dragMoved = 0;
+    last = { x: 0, y: 0 };
+
+    constructor() {
+      super('lab');
+    }
+
+    init() {
+      this.cb = (this.game.registry.get('cb') as SceneCallbacks) ?? {};
+      this.agents = (this.game.registry.get('agents') as AgentView[]) ?? [];
+    }
+
+    preload() {
+      this.load.image('tiles', `${VENDOR}/tiles.png`);
+      this.load.tilemapTiledJSON('lab', `${VENDOR}/yule-agent-lab.tmj`);
+      this.load.atlas('office', `${ATLAS}/office-objects.png`, `${ATLAS}/office-objects.json`);
+      this.load.atlas('agents', `${ATLAS}/agents.png`, `${ATLAS}/agents.json`);
+    }
+
+    create() {
+      const map = this.make.tilemap({ key: 'lab' });
+      const ts = map.addTilesetImage('lab', 'tiles')!;
+      map.createLayer('floor', ts, 0, 0)!.setDepth(-1000);
+      map.createLayer('walls', ts, 0, 0)!.setDepth(-500);
+
+      // furniture, depth-sorted by base-y (+ z bias)
+      const furn = map.getObjectLayer('furniture')?.objects ?? [];
+      for (const o of furn) {
+        const name = propVal(o, 'sprite');
+        if (!this.textures.getFrame('office', name)) continue;
+        const scale = propVal(o, 'scale') ?? 0.4;
+        const z = propVal(o, 'z') ?? 0;
+        this.add.image(o.x!, o.y!, 'office', name).setOrigin(0.5, 1).setScale(scale).setDepth(o.y! + z * 4);
+      }
+
+      // seats + pois
+      this.seats = (map.getObjectLayer('seats')?.objects ?? []).map((o: any) => ({
+        x: o.x, y: o.y, role: propVal(o, 'role') ?? 'member',
+        facing: (propVal(o, 'facing') as 'up' | 'down') ?? 'up', zone: propVal(o, 'zone') ?? 'desk', taken: null,
+      }));
+      for (const o of map.getObjectLayer('pois')?.objects ?? []) {
+        this.pois[o.name!] = {
+          name: o.name!, kind: propVal(o, 'kind') ?? '', x: o.x!, y: o.y!, w: o.width!, h: o.height!,
+          cx: o.x! + o.width! / 2, cy: o.y! + o.height! / 2,
+        };
+      }
+
+      this.buildAnims();
+      this.setupCamera(map.widthInPixels, map.heightInPixels);
+      this.setupInput();
+      this.syncAgents(this.agents);
+
+      this.scale.on('resize', () => this.fitCamera(map.widthInPixels, map.heightInPixels));
+      this.cb.onReady?.();
+    }
+
+    buildAnims() {
+      for (let i = 0; i < SKINS; i++) {
+        const id = `skin${String(i).padStart(2, '0')}`;
+        if (this.anims.exists(`walk_${id}`)) continue;
+        const f = (p: string) => ({ key: 'agents', frame: `${id}_${p}` });
+        this.anims.create({ key: `walk_${id}`, frames: [f('walk1'), f('idle'), f('walk2'), f('idle')], frameRate: 7, repeat: -1 });
+      }
+    }
+
+    setupCamera(mw: number, mh: number) {
+      const cam = this.cameras.main;
+      cam.setBounds(0, 0, mw, mh);
+      this.fitCamera(mw, mh);
+    }
+    fitCamera(mw: number, mh: number) {
+      const cam = this.cameras.main;
+      this.minZoom = Math.min(cam.width / mw, cam.height / mh);
+      cam.setZoom(Math.max(cam.zoom || 0, this.minZoom) || this.minZoom);
+      if (cam.zoom < this.minZoom) cam.setZoom(this.minZoom);
+      cam.centerOn(mw / 2, mh / 2);
+    }
+
+    setupInput() {
+      this.input.on('pointerdown', (p: any) => { this.dragging = true; this.dragMoved = 0; this.last = { x: p.x, y: p.y }; });
+      this.input.on('pointermove', (p: any) => {
+        if (!this.dragging || !p.isDown) return;
+        const cam = this.cameras.main;
+        cam.scrollX -= (p.x - this.last.x) / cam.zoom;
+        cam.scrollY -= (p.y - this.last.y) / cam.zoom;
+        this.dragMoved += Math.abs(p.x - this.last.x) + Math.abs(p.y - this.last.y);
+        this.last = { x: p.x, y: p.y };
+      });
+      this.input.on('pointerup', (p: any) => {
+        const wasDrag = this.dragMoved > 8;
+        this.dragging = false;
+        if (!wasDrag && !(p.downElement && this.pickedAgent)) this.cb.onBackgroundClick?.();
+        this.pickedAgent = null;
+      });
+      this.input.on('wheel', (_p: any, _o: any, _dx: number, dy: number) => {
+        const cam = this.cameras.main;
+        const z = Phaser.Math.Clamp(cam.zoom * (dy > 0 ? 0.9 : 1.1), this.minZoom, 2.6);
+        cam.setZoom(z);
+      });
+    }
+    pickedAgent: string | null = null;
+
+    // ---- agents -----------------------------------------------------------
+    allocate(agents: AgentView[]) {
+      // explicit override (metadata.seat) → then role match → then any free
+      this.seats.forEach((s) => (s.taken = null));
+      this.assigned.clear();
+      const free = () => this.seats.filter((s) => !s.taken);
+      const byRoleHint = (a: AgentView) => {
+        const t = `${a.role} ${a.title} ${(a.capabilities ?? []).join(' ')}`.toLowerCase();
+        if (t.includes('lead') || t.includes('coordinator')) return 'lead';
+        if (t.includes('devops') || t.includes('infra') || t.includes('platform') || t.includes('ops')) return 'devops';
+        if (t.includes('product') || t.includes('design') || t.includes('plan')) return 'product';
+        return 'member';
+      };
+      const sorted = [...agents].sort((a, b) => (byRoleHint(a) === 'lead' ? -1 : 0) - (byRoleHint(b) === 'lead' ? -1 : 0));
+      for (const a of sorted) {
+        const want = byRoleHint(a);
+        let seat = free().find((s) => s.role === want) ?? free().find((s) => s.role === 'member') ?? free()[0];
+        if (!seat) break;
+        seat.taken = a.id;
+        this.assigned.set(a.id, seat);
+      }
+    }
+
+    targetFor(a: AgentView): { x: number; y: number; facing: 'up' | 'down' } {
+      const zone = zoneForActivity(a);
+      if (zone && this.pois[zone]) {
+        // spread agents around the poi centre deterministically
+        const idx = [...this.assigned.keys()].indexOf(a.id);
+        const p = this.pois[zone];
+        const cols = Math.max(1, Math.floor(p.w / 60));
+        const gx = (idx % cols) - (cols - 1) / 2;
+        const gy = Math.floor(idx / cols) % 2;
+        return { x: p.cx + gx * 46, y: p.cy + gy * 40, facing: 'down' };
+      }
+      const seat = this.assigned.get(a.id);
+      if (seat) return { x: seat.x, y: seat.y, facing: seat.facing };
+      return { x: this.pois['lounge']?.cx ?? 880, y: this.pois['lounge']?.cy ?? 640, facing: 'down' };
+    }
+
+    syncAgents(agents: AgentView[]) {
+      this.agents = agents;
+      this.allocate(agents);
+      const alive = new Set(agents.map((a) => a.id));
+      for (const [id, c] of this.sprites) if (!alive.has(id)) { c.destroy(); this.sprites.delete(id); }
+
+      for (const a of agents) {
+        const skin = `skin${String(a.avatarSeed % SKINS).padStart(2, '0')}`;
+        const tgt = this.targetFor(a);
+        let c = this.sprites.get(a.id);
+        if (!c) {
+          const spr = this.add.sprite(tgt.x, tgt.y, 'agents', `${skin}_idle`).setOrigin(0.5, 1).setScale(AGENT_SCALE);
+          spr.setInteractive({ useHandCursor: true });
+          spr.on('pointerdown', (p: any) => {
+            this.pickedAgent = a.id;
+            this.cb.onAgentClick?.(a.id, p.event?.clientX ?? p.x, p.event?.clientY ?? p.y);
+          });
+          c = spr;
+          this.sprites.set(a.id, c);
+          c.setDepth(tgt.y);
+        }
+        c.setData('skin', skin);
+        c.setData('target', tgt);
+        c.setData('activity', a.activity);
+      }
+    }
+
+    update(_t: number, dt: number) {
+      const speed = 0.12 * dt; // px per frame
+      for (const [, c] of this.sprites) {
+        const tgt = c.getData('target');
+        if (!tgt) continue;
+        const dx = tgt.x - c.x, dy = tgt.y - c.y;
+        const d = Math.hypot(dx, dy);
+        const skin = c.getData('skin');
+        if (d > 2) {
+          const step = Math.min(speed, d);
+          c.x += (dx / d) * step;
+          c.y += (dy / d) * step;
+          c.setDepth(c.y);
+          if (Math.abs(dx) > 1) c.setFlipX(dx < 0);
+          if (c.anims.getName() !== `walk_${skin}`) c.play(`walk_${skin}`);
+        } else {
+          if (c.anims.isPlaying) { c.anims.stop(); c.setFrame(`${skin}_idle`); }
+        }
+      }
+    }
+  };
+}
