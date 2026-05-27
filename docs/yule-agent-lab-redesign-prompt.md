@@ -10,6 +10,18 @@ Use the source images in:
 assets-src/yule-workspace-motion/references/
 ```
 
+Important: assets from `yule-workspace-motion2` have been copied into that
+folder and should be treated as the latest design source. In particular,
+`building-facade.png`, `door-motion.png`, and `seated-desk-motion-01.png`
+through `seated-desk-motion-04.png` override the older first-pass references
+where they overlap.
+
+Note: `office-shell-floorplan-v2.png` was a misnamed intermediate copy of the
+updated building/facade source. Do not use it as the interior floorplan
+reference. Use `building-facade.png` for exterior/facade work and
+`office-shell-floorplan.png` for the interior office map unless a separate
+newer floorplan is provided.
+
 Treat these images as source references/sprite sheets. Do not render the whole
 reference sheets directly in the UI. Extract/crop/clean runtime sprites and map
 assets into:
@@ -37,9 +49,22 @@ primary experience.
 Use these source files:
 
 - `office-shell-floorplan.png`
-  - Main single-floor layout reference.
+  - Main single-floor interior layout reference.
   - Use it to build a proper Tiled map with rooms, walls, doors, corridors, and
     floor material changes.
+- `office-shell-floorplan-v2.png`
+  - Misnamed intermediate copy of the updated building/facade source.
+  - Do not use this as the interior floorplan reference.
+- `building-facade.png`
+  - Current building/facade source.
+  - This has been replaced by the newly added image from
+    `yule-workspace-motion2`.
+  - If the building/exterior view is kept, use this file rather than the older
+    facade.
+- `door-motion.png`
+  - Extract door sprites and open/close frames.
+  - Use these for office entry, room doors, tech lead office, meeting/review
+    room, and any agent transition through a doorway.
 - `desk-ai-engineer-backend-devops.png`
   - Extract AI engineer, backend, devops workstation variants.
   - Must preserve front/back desk direction, monitor backs, cables, legs, desk
@@ -53,8 +78,13 @@ Use these source files:
   - Extract additional interior props.
 - `agent-motion-01.png` through `agent-motion-04.png`
   - Extract agent sprites, idle poses, walk poses, phone/tablet/coffee poses.
+- `seated-desk-motion-01.png` through `seated-desk-motion-04.png`
+  - Extract the latest seated desk poses and desk-working motion frames.
+  - These are now preferred over `seated-desk-motion.png`.
+  - Use them when an agent is working/coding/reading at a workstation.
 - `seated-desk-motion.png`
-  - Extract seated desk poses.
+  - Older seated desk pose sheet. Use only if a needed pose is missing from the
+    new four sheets.
 - `monitor-motion.png`
   - Extract monitor/screen animation variants.
 - `time-of-day-backgrounds.png`
@@ -63,7 +93,7 @@ Use these source files:
   - Use clear-day/cloud/sparkle elements.
 - `weather-rain-snow-cloud-elements.png`
   - Use rain/snow/cloud/puddle overlays.
-- `building-facade.png`, `time-of-day-building.png`, `exterior-street-props.png`
+- `time-of-day-building.png`, `exterior-street-props.png`
   - Optional exterior/building view assets, but the Office screen should focus
     on the single interior floor first.
 
@@ -116,6 +146,11 @@ The floor must feel like a real office, not a tiled empty hall. If an area has
 large empty tiles, add intentional props, rugs, shelves, boards, plants, cables,
 paper stacks, or seating.
 
+Do not build the floor by repeating generic desk rows across a huge rectangle.
+Use the office shell image as the spatial source: room shapes, wall breaks, door
+positions, corridors, and smaller office zones should drive the Tiled map.
+The result should feel composed, not generated.
+
 ## Agent Placement
 
 Use the live yule-studio-agent registry/source. Do not hardcode eight agents.
@@ -146,6 +181,53 @@ State behavior:
 - `idle`
   - agent can remain at desk, lounge, shelf, or water cooler
 
+## Door And Room Transition Motion
+
+Use `door-motion.png` for real in-world transitions. Doors should not be static
+rectangles.
+
+Requirements:
+
+- Extract open/close frames into the runtime atlas.
+- Add door objects/POIs to the Tiled map.
+- When an agent enters or exits a room:
+  - walk to the door tile
+  - play the open animation
+  - pass through the doorway
+  - play the close animation
+- Door animation should respect depth sorting so the agent briefly appears
+  behind/in front of the door frame naturally.
+- Use door collision objects so agents do not walk through walls.
+- Tech Lead Office, meeting/review rooms, and entry points should use these
+  animated door sprites.
+
+If full pathfinding is not ready yet, implement a simple deterministic
+waypoint route through door POIs first.
+
+## Seated Work Motion
+
+Use `seated-desk-motion-01.png` through `seated-desk-motion-04.png` for desk
+work states. The current “standing sprite placed near a chair” look is not
+enough.
+
+Requirements:
+
+- Extract seated/front/back/side work poses where available.
+- When an agent is `coding`, `running`, `reading`, or doing focused work:
+  - snap or walk them to their assigned seat
+  - switch to the appropriate seated-at-desk animation
+  - align body, chair, desk, monitor, and keyboard as one believable
+    workstation scene
+- A seated agent should not look like they are standing on top of the desk or
+  floating behind it.
+- Seat orientation must match desk orientation:
+  - chair below desk: agent faces upward toward the desk/monitor, but monitor
+    front should face the chair/player side as designed by the source asset
+  - chair above desk: use the correct back-facing desk/monitor and seated pose
+  - side desks: use side-facing or nearest available seated pose
+- If a precise pose is missing, create a small derived sprite from the provided
+  motion sheet instead of reusing a generic standing character.
+
 ## Desk Direction And Depth
 
 This is critical.
@@ -171,6 +253,11 @@ Workstations should not look like flat UI rectangles. Each desk needs:
 - papers/notes/cups/cables
 - chair
 - contact shadow
+
+Desk sprites should come from the source sheets or from cropped/cleaned derived
+sprites, not from CSS rectangles. The front/back relationship matters more than
+simple rotation. A desk facing the opposite direction needs a different sprite,
+not a 180-degree transform.
 
 ## Sprite Extraction Requirements
 
@@ -212,6 +299,15 @@ monitor_code
 monitor_dashboard
 monitor_review
 monitor_design
+door_office_closed
+door_office_open_01
+door_office_open_02
+door_office_open_03
+agent_seated_front_code
+agent_seated_back_code
+agent_seated_side_code
+agent_seated_front_review
+agent_seated_back_review
 ```
 
 If fully automated extraction is hard, crop manually in a deterministic script
@@ -312,12 +408,17 @@ current priority is one high-quality playable floor.
 ## Acceptance Criteria
 
 - `/office` opens directly into a dense single-floor game office.
+- The map uses `office-shell-floorplan.png` as the interior layout reference.
+- The building/exterior view, if present, uses the updated `building-facade.png`.
 - The office uses the provided source images as extracted sprites/tiles, not
   primitive CSS rectangles.
 - Agents are loaded dynamically from the registry/source.
 - All agents can be placed on the one floor via role/capability/metadata.
 - Desk direction is correct: front/back sprites are used, not rotated fakes.
-- Agent seated pose faces the correct desk/monitor.
+- Agent seated pose comes from `seated-desk-motion-01.png` through
+  `seated-desk-motion-04.png` and faces the correct desk/monitor.
+- Door motion from `door-motion.png` is wired for room entry/exit or at least
+  extracted and integrated as animated door sprites.
 - Agent speech bubbles feel like actual in-world dialogue.
 - Time-of-day and weather elements are wired from the provided source sheets.
 - Existing session/detail behavior still works through agent click or a compact
@@ -327,4 +428,3 @@ current priority is one high-quality playable floor.
 
 Important: Do not chase every floor/building feature right now. Make one floor
 beautiful and functional first.
-
