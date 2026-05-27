@@ -40,6 +40,7 @@ export function LabGame({
   const sceneRef = useRef<any>(null);
   const readyRef = useRef(false);
   const agentsRef = useRef(agents);
+  const startView = useRef(view); // initial view → which scene auto-starts
   const envRef = useRef({ phase, weather });
   envRef.current = { phase, weather };
   const cbRef = useRef({ onAgentClick, onBackgroundClick, onEnterFloor });
@@ -62,6 +63,7 @@ export function LabGame({
       const { makeLabScene } = await import('./scene.js');
       const { makeBuildingScene } = await import('./building.js');
       if (disposed || !hostRef.current) return;
+      const lab = makeLabScene(Phaser), bldg = makeBuildingScene(Phaser);
       const game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: hostRef.current,
@@ -69,7 +71,8 @@ export function LabGame({
         pixelArt: true,
         roundPixels: true,
         scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-        scene: [makeLabScene(Phaser), makeBuildingScene(Phaser)],
+        // the initial view's scene goes first so it auto-starts (home = Building)
+        scene: startView.current === 'building' ? [bldg, lab] : [lab, bldg],
       });
       gameRef.current = game;
       game.registry.set('agents', agentsRef.current);

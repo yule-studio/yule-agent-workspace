@@ -31,7 +31,7 @@ export default function Office() {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [follow, setFollow] = useState(false);
-  const [view, setView] = useState<'floor' | 'building'>('floor');
+  const [view, setView] = useState<'floor' | 'building'>('building'); // home opens on Building
 
   const active = agents.filter((a) => a.activity !== 'idle').length;
   const menuAgent = agents.find((a) => a.id === menu?.id) ?? null;
