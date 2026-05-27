@@ -119,18 +119,18 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
 
     ensureFxTextures() {
       if (!this.textures.exists('contact-shadow')) {
-        const g = this.make.graphics({ add: false });
+        const g = this.make.graphics();
         const RW = 220, RH = 64; // stacked ellipses → soft radial alpha (no heavy blur)
         for (let i = 12; i >= 1; i--) { g.fillStyle(0x0a0e16, 0.055); g.fillEllipse(RW / 2, RH / 2, RW * (i / 12), RH * (i / 12)); }
         g.generateTexture('contact-shadow', RW, RH); g.destroy();
       }
       if (!this.textures.exists('bld-fog')) {
-        const g = this.make.graphics({ add: false });
+        const g = this.make.graphics();
         g.fillGradientStyle(0xb4c2d0, 0xb4c2d0, 0xb4c2d0, 0xb4c2d0, 0.24, 0.24, 0.02, 0.02);
         g.fillRect(0, 0, 64, 64); g.generateTexture('bld-fog', 64, 64); g.destroy();
       }
       if (!this.textures.exists('refl-grad')) {
-        const g = this.make.graphics({ add: false });
+        const g = this.make.graphics();
         g.fillGradientStyle(0xffffff, 0xffffff, 0xffffff, 0xffffff, 0.5, 0.5, 0, 0);
         g.fillRect(0, 0, 64, 128); g.generateTexture('refl-grad', 64, 128); g.destroy();
       }
