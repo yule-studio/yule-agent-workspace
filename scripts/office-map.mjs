@@ -38,29 +38,80 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   const inside = (c, r) => (c >= 2 && c <= 20 && r >= 2 && r <= 20) || (c >= 21 && c <= 30 && r >= 2 && r <= 9);
   const edge = (c, r) => !inside(c - 1, r) || !inside(c + 1, r) || !inside(c, r - 1) || !inside(c, r + 1);
   const carpet = [g('floor_carpet_a'), g('floor_carpet_b'), g('floor_carpet_c')];
+
+  // Wall bookkeeping. Exterior walls depend only on which neighbours are VOID, so
+  // they pick their tile immediately. Interior dividers depend on how they connect
+  // to OTHER walls (straight / corner / end / door jamb), so we record them and
+  // resolve their tiles in a second pass once every wall line has been laid.
+  const wallKey = (c, r) => `${c},${r}`;
+  const wallSet = new Set();           // every wall cell (exterior + interior)
+  const iwallCells = [];               // interior cells awaiting tile resolution
+  const doorCells = [];                // [c, r, vertical] → floor threshold
+  const glassCells = new Set();        // interior cells to render as glass partition
+  const isWall = (c, r) => wallSet.has(wallKey(c, r));
+
+  // exterior tile from the VOID-direction bitmask (n/e/s/w). Outer corners get a
+  // dedicated corner tile; straight runs get the top/side slab; flips orient them.
+  // The lower edge (r >= 15) switches to brick so the lower rooms read as a
+  // different material — like the reference's brick-walled rooms.
+  const exteriorTile = (c, r) => {
+    const n = !inside(c, r - 1), s = !inside(c, r + 1), w = !inside(c - 1, r), e = !inside(c + 1, r);
+    if (n && w) return [g('wall_corner'), 0];
+    if (n && e) return [g('wall_corner'), FLIP_H];
+    if (s && w) return [g('wall_corner'), FLIP_V];
+    if (s && e) return [g('wall_corner'), FLIP_H | FLIP_V];
+    const brick = r >= 15;
+    if (n) return [g(brick ? 'brick_top' : 'wall_top'), 0];
+    if (s) return [g(brick ? 'brick_top' : 'wall_top'), FLIP_V];
+    if (w) return [g('wall_side'), 0];
+    if (e) return [g('wall_side'), FLIP_H];
+    return [g('pillar'), 0]; // fully enclosed (should not happen on a ring)
+  };
   for (let r = 0; r < H; r++)
     for (let c = 0; c < W; c++) {
       if (!inside(c, r)) continue; // void → transparent (black)
-      if (edge(c, r)) { set(walls, c, r, g('wall')); collide(c, r); }
-      else floor[idx(c, r)] = carpet[(c * 7 + r * 13) % 3];
+      if (edge(c, r)) {
+        const [gid, f] = exteriorTile(c, r);
+        set(walls, c, r, gid | f); collide(c, r); wallSet.add(wallKey(c, r));
+      } else floor[idx(c, r)] = carpet[(c * 7 + r * 13) % 3];
     }
 
   const tileRoom = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (inside(c, r)) floor[idx(c, r)] = ((c + r) % 2 ? g('floor_tile_b') : g('floor_tile_a')); };
   const corridor = (c0, r0, c1, r1) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (inside(c, r) && !walls[idx(c, r)]) floor[idx(c, r)] = g('floor_corridor'); };
-  // straight interior wall with door gaps (cells listed in doors are skipped)
+  // straight interior wall with door gaps (cells listed in doors are skipped).
+  // Tiles are deferred — resolveInteriorWalls() picks straight/corner/jamb later.
   const wallLine = (cells, doors = []) => {
+    const vertical = cells.length < 2 || cells[0][0] === cells[1][0];
     for (const [c, r] of cells) {
-      if (doors.some(([dc, dr]) => dc === c && dr === r)) continue;
-      set(walls, c, r, g('wall_inner'));
-      collide(c, r);
+      if (doors.some(([dc, dr]) => dc === c && dr === r)) { doorCells.push([c, r, vertical]); continue; }
+      set(walls, c, r, g('wall_inner')); // placeholder; replaced in the resolve pass
+      collide(c, r); wallSet.add(wallKey(c, r)); iwallCells.push([c, r]);
     }
+  };
+  // Resolve every interior wall cell from its wall-neighbour connectivity:
+  // straight H/V, L-corner, or door jamb (capped end). Then drop door thresholds.
+  const resolveInteriorWalls = () => {
+    for (const [c, r] of iwallCells) {
+      const n = isWall(c, r - 1), s = isWall(c, r + 1), w = isWall(c - 1, r), e = isWall(c + 1, r);
+      const glass = glassCells.has(wallKey(c, r));
+      let gid, f = 0;
+      if (n + s + e + w >= 3) gid = g('pillar');                 // junction → post
+      else if (n && s && !(e || w)) { gid = g(glass ? 'glass_v' : 'iwall_v'); if (glass) floor[idx(c, r)] = g('floor_tile_a'); }
+      else if (e && w && !(n || s)) { gid = g(glass ? 'glass_h' : 'iwall_h'); if (glass) floor[idx(c, r)] = g('floor_tile_a'); }
+      else if ((n || s) && (e || w)) {                           // L corner (arms E+S canonical)
+        gid = g('iwall_corner');
+        f = (w && !e ? FLIP_H : 0) | (n && !s ? FLIP_V : 0);
+      } else if (n || s) { gid = g('jamb_v'); f = n ? 0 : FLIP_V; } // vertical end cap toward the door
+      else { gid = g('jamb_h'); f = w ? 0 : FLIP_H; }              // horizontal end cap toward the door
+      set(walls, c, r, gid | f);
+    }
+    for (const [c, r, vertical] of doorCells) if (inside(c, r)) floor[idx(c, r)] = g(vertical ? 'threshold_v' : 'threshold_h');
   };
   const hLine = (c0, c1, r) => Array.from({ length: c1 - c0 + 1 }, (_, i) => [c0 + i, r]);
   const vLine = (r0, r1, c) => Array.from({ length: r1 - r0 + 1 }, (_, i) => [c, r0 + i]);
 
   // variant pools — chosen deterministically per pod index so no two pods are
   // copy-paste, but the same seat always gets the same setup.
-  const MONS = ['monitor_a', 'monitor_b', 'monitor_c', 'monitor_d', 'monitor_dual', 'monitor_vert', 'monitor_large', 'monitor_combo'];
   const UPCH = ['chair_up', 'chair_exec_up', 'chair_mesh_up'];
   const CLUT = ['clutter_a', 'clutter_b', 'clutter_c', 'clutter_d', 'clutter_e'];
   const deskTriple = (pc, r, flipV = false, v = '') => {
@@ -80,22 +131,30 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
       const v = s % 2 ? '2' : ''; // alternate partition material
       deskTriple(pc, pr, true, v); // down-desk (front edge up, partition down)
       deskTriple(pc, pr + 1, false, v); // up-desk
-      // down-desk row (agent above): monitor centre + keyboard + clutter combo
-      set(objects, pc + 1, pr, g(MONS[s % MONS.length]));
-      set(objects, pc, pr, g('keyboard'));
-      set(objects, pc + 2, pr, g(CLUT[s % CLUT.length]));
-      // up-desk row (agent below): monitor (V-flip → screen faces down) + clutter + keyboard
-      set(objects, pc + 1, pr + 1, g(MONS[(s + 3) % MONS.length]) | FLIP_V);
+      // GEAR is orientation-aware (monitor + keyboard baked, keyboard toward the
+      // agent). NEVER flip a monitor — down-facing seats (screen faces away) use
+      // the BACK monitor; up-facing seats (screen toward viewer) use FRONT+UI.
+      const GU = ['gear_up_a', 'gear_up_b', 'gear_up_c'];
+      // down-desk row (agent ABOVE, faces down → monitor BACK, keyboard at top)
+      set(objects, pc + 1, pr, g('gear_dn'));
+      set(objects, pc, pr, g(CLUT[s % CLUT.length]));
+      set(objects, pc + 2, pr, g(CLUT[(s + 1) % CLUT.length]));
+      // up-desk row (agent BELOW, faces up → readable FRONT monitor, keyboard at bottom)
+      set(objects, pc + 1, pr + 1, g(GU[s % GU.length]));
       set(objects, pc, pr + 1, g(CLUT[(s + 2) % CLUT.length]));
-      set(objects, pc + 2, pr + 1, g('keyboard'));
+      set(objects, pc + 2, pr + 1, g(CLUT[(s + 3) % CLUT.length]));
       // chairs — up-seat varies (task/exec/mesh), down-seat task
       set(furniture, pc + 1, pr - 1, g('chair_down')); seat(pc + 1, pr - 1, 'member', 'down');
       set(furniture, pc + 1, pr + 2, g(UPCH[s % UPCH.length])); seat(pc + 1, pr + 2, 'member', 'up');
       s++;
     }
   }
-  // bullpen wall decor (row 2 = top wall) above each pod
-  set(objects, 3, 2, g('whiteboard_l')); set(objects, 4, 2, g('whiteboard_r')); set(objects, 8, 2, g('corkboard')); set(objects, 13, 2, g('poster')); set(objects, 17, 2, g('board_kanban'));
+  // bullpen wall decor (row 2 = top wall) — varied wall-mounted props so the long
+  // top wall reads as a real office wall, not a bare slab.
+  set(objects, 3, 2, g('ac_unit')); set(objects, 4, 2, g('whiteboard_l')); set(objects, 5, 2, g('whiteboard_r'));
+  set(objects, 7, 2, g('wall_chart')); set(objects, 8, 2, g('corkboard')); set(objects, 10, 2, g('wall_clock'));
+  set(objects, 12, 2, g('board_kanban')); set(objects, 13, 2, g('poster')); set(objects, 15, 2, g('wall_shelf'));
+  set(objects, 17, 2, g('whiteboard_l')); set(objects, 18, 2, g('whiteboard_r')); set(objects, 19, 2, g('wall_sign'));
   // separators in the WIDE inter-pod gap (cols 10-11) — break the repeat grid
   set(furniture, 10, 4, g('plant_b')); set(furniture, 10, 8, g('cabinet')); set(furniture, 11, 11, g('plant_b'));
   // narrow-gap fillers (cols 6 / 15) + right aisle (col 19)
@@ -107,13 +166,15 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   // =====================================================================
   // TOP-RIGHT WING — meeting room + lounge/library (cols 21..30, rows 2..9)
   // =====================================================================
-  // partition separating bullpen aisle (col 20) from the wing (door rows 5..6)
+  // partition separating bullpen aisle (col 20) from the wing (door rows 5..6).
+  // The two cells above the door are GLASS — a glass-fronted meeting room.
   wallLine(vLine(3, 8, 21), [[21, 5], [21, 6]]);
+  glassCells.add(`${21},${3}`); glassCells.add(`${21},${4}`);
   corridor(20, 4, 20, 7);
   // meeting room (cols 22..25)
   tileRoom(22, 3, 25, 8);
   wallLine(vLine(3, 8, 26)); // right wall of meeting (vs lounge)
-  set(objects, 22, 2, g('whiteboard_l')); set(objects, 23, 2, g('whiteboard_r')); set(objects, 24, 2, g('board_kanban'));
+  set(objects, 22, 2, g('whiteboard_l')); set(objects, 23, 2, g('whiteboard_r')); set(objects, 24, 2, g('wall_chart')); set(objects, 25, 2, g('ac_unit'));
   set(furniture, 23, 5, g('table_tl')); set(furniture, 24, 5, g('table_tr'));
   set(furniture, 23, 6, g('table_bl')); set(furniture, 24, 6, g('table_br'));
   collide(23, 5, 2, 2);
@@ -125,7 +186,8 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
   set(furniture, 22, 8, g('plant_b'));
   poi(23, 6, 'meeting', 'down');
   // lounge / library (cols 27..30) — reading + shelves, side-facing seats
-  set(objects, 27, 2, g('corkboard')); set(objects, 29, 2, g('poster'));
+  set(objects, 27, 2, g('wall_shelf')); set(objects, 28, 2, g('corkboard')); set(objects, 29, 2, g('poster'));
+  set(objects, 30, 5, g('conduit')); // cable conduit running down the right wall
   set(furniture, 27, 4, g('sofa_l')); set(furniture, 28, 4, g('sofa_m')); set(furniture, 29, 4, g('sofa_r'));
   collide(27, 4, 3, 1);
   set(furniture, 28, 5, g('table_bl')); set(furniture, 29, 5, g('table_br'));
@@ -172,6 +234,10 @@ export function buildMap({ TS, nameToGid, atlasW, atlasH, count }) {
 
   // entries
   spawn(10, 13, 'up'); spawn(20, 5, 'right'); spawn(6, 15, 'down');
+
+  // resolve interior wall tiles now that every wall line is laid (connectivity
+  // is known) + drop door thresholds. Must run before assembling the layers.
+  resolveInteriorWalls();
 
   // ── assemble Tiled JSON ──
   let lid = 1;
