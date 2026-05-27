@@ -43,6 +43,10 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
     env: { phase: Phase; weather: Weather } = { phase: 'day', weather: 'clear' };
     bg: any = null;
     bld: any = null;
+    fog: any = null;
+    refl: any = null;
+    reflMask: any = null;
+    shadow: any = null;
     rain: any = null;
     snow: any = null;
     clouds: any[] = [];
@@ -72,12 +76,24 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
         const c = this.add.image(0, 0, `wx-${n}`).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(5).setAlpha(0.9);
         c.setData('i', i); this.clouds.push(c);
       });
+      // ── blend layers so the building sits IN the scene, not on top of it ──
+      this.ensureFxTextures();
+      // back-fog: faint blue-grey haze between the far backdrop and the building
+      this.fog = this.add.image(0, 0, 'bld-fog').setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(3);
+      // wet-floor reflection: the building flipped + faded by a gradient mask
+      this.reflMask = this.add.image(0, 0, 'refl-grad').setOrigin(0.5, 0).setScrollFactor(0).setVisible(false);
+      this.refl = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 0).setFlipY(true).setScrollFactor(0)
+        .setDepth(2).setAlpha(0.13).setTint(0x93a1b2);
+      this.refl.setMask(this.reflMask.createBitmapMask());
       // the building, grounded on the sidewalk
       this.bld = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 1).setScrollFactor(0).setDepth(10);
+      this.bld.setTint(0xdfe6ee); // subtle cool-grey weather grade (less stark vs hazy bg)
       this.bld.setInteractive({ useHandCursor: true });
       this.bld.on('pointerdown', () => this.cb.onEnterFloor?.());
       this.bld.on('pointerover', () => this.cta?.setAlpha(0.95).setScale(1.04));
       this.bld.on('pointerout', () => this.cta?.setAlpha(0.45).setScale(1));
+      // soft flat contact shadow at the base (slight, not photoreal)
+      this.shadow = this.add.image(0, 0, 'contact-shadow').setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(8);
       // weather particles (sprite-based), screen-space
       this.rain = this.add.particles(0, 0, 'wx-rain-streak', {
         x: { min: -120, max: 2600 }, y: -40, lifespan: 1100, quantity: 4, frequency: 28,
@@ -101,6 +117,25 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       this.scale.on('resize', () => this.relayout());
     }
 
+    ensureFxTextures() {
+      if (!this.textures.exists('contact-shadow')) {
+        const g = this.make.graphics({ add: false });
+        const RW = 220, RH = 64; // stacked ellipses → soft radial alpha (no heavy blur)
+        for (let i = 12; i >= 1; i--) { g.fillStyle(0x0a0e16, 0.055); g.fillEllipse(RW / 2, RH / 2, RW * (i / 12), RH * (i / 12)); }
+        g.generateTexture('contact-shadow', RW, RH); g.destroy();
+      }
+      if (!this.textures.exists('bld-fog')) {
+        const g = this.make.graphics({ add: false });
+        g.fillGradientStyle(0xb4c2d0, 0xb4c2d0, 0xb4c2d0, 0xb4c2d0, 0.24, 0.24, 0.02, 0.02);
+        g.fillRect(0, 0, 64, 64); g.generateTexture('bld-fog', 64, 64); g.destroy();
+      }
+      if (!this.textures.exists('refl-grad')) {
+        const g = this.make.graphics({ add: false });
+        g.fillGradientStyle(0xffffff, 0xffffff, 0xffffff, 0xffffff, 0.5, 0.5, 0, 0);
+        g.fillRect(0, 0, 64, 128); g.generateTexture('refl-grad', 64, 128); g.destroy();
+      }
+    }
+
     relayout() {
       const w = this.scale.width, h = this.scale.height;
       // cover the screen with the backdrop; ground/sidewalk at the bottom
@@ -108,11 +143,18 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
         const s = Math.max(w / this.bg.width, h / this.bg.height);
         this.bg.setScale(s).setPosition(w / 2, h + 1);
       }
-      // building grounded on the sidewalk (~0.62 of screen height)
+      // building grounded on the sidewalk (~0.62 of screen height, +4% so it sits firmly)
       if (this.bld?.width) {
-        const bScale = (h * 0.62) / this.bld.height;
+        const bScale = ((h * 0.62) / this.bld.height) * 1.04;
         this.bld.setScale(bScale).setPosition(w * 0.5, h * 0.93);
-        this.cta.setPosition(w * 0.5, h * 0.93 - this.bld.displayHeight * 0.08);
+        const bx = w * 0.5, baseY = h * 0.93, bw = this.bld.displayWidth, bh = this.bld.displayHeight;
+        this.cta.setPosition(bx, baseY - bh * 0.08);
+        this.fog?.setDisplaySize(bw * 1.4, bh * 0.78).setPosition(bx, baseY - bh * 0.5);
+        this.shadow?.setDisplaySize(bw * 0.84, Math.max(16, bh * 0.05)).setPosition(bx, baseY - 2);
+        if (this.refl) {
+          this.refl.setScale(this.bld.scaleX, this.bld.scaleY * 0.42).setPosition(bx, baseY);
+          this.reflMask.setDisplaySize(this.refl.displayWidth, this.refl.displayHeight).setPosition(bx, baseY);
+        }
       }
       // clouds in the upper sky, varied size
       const sizes = [0.13, 0.08, 0.07, 0.1];
@@ -136,7 +178,7 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       const bgK = `bg-${bg}`, bldK = `bld-${bld}`;
       const apply = () => {
         if (this.textures.exists(bgK)) this.bg.setTexture(bgK);
-        if (this.textures.exists(bldK)) this.bld.setTexture(bldK);
+        if (this.textures.exists(bldK)) { this.bld.setTexture(bldK); this.refl?.setTexture(bldK); }
         this.relayout();
         this.applyWeather();
       };
