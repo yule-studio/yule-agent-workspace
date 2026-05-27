@@ -106,6 +106,42 @@ export function cutout(img, box, bg, thresh) {
   return out;
 }
 
+/**
+ * Key out a baked transparency CHECKERBOARD by flood-filling from the border
+ * over light, near-grey pixels (sat ≤ satTol AND brightness ≥ brightMin). Unlike
+ * a single-colour key it catches BOTH checker shades, and it stops at the
+ * subject's coloured / dark perimeter — so interior light-grey areas survive.
+ */
+export function cutoutChecker(img, { satTol = 12, brightMin = 222 } = {}) {
+  const { w, h } = img;
+  const out = blankImage(w, h);
+  for (let p = 0; p < w * h; p++) {
+    const i = p * 4;
+    out.data[i] = img.data[i]; out.data[i + 1] = img.data[i + 1]; out.data[i + 2] = img.data[i + 2]; out.data[i + 3] = 255;
+  }
+  const isBg = (p) => {
+    const i = p * 4, r = out.data[i], g = out.data[i + 1], b = out.data[i + 2];
+    return Math.max(r, g, b) - Math.min(r, g, b) <= satTol && (r + g + b) / 3 >= brightMin;
+  };
+  const seen = new Uint8Array(w * h);
+  const q = [];
+  const push = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const p = y * w + x;
+    if (seen[p] || !isBg(p)) return;
+    seen[p] = 1; q.push(p);
+  };
+  for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); }
+  for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+  while (q.length) {
+    const p = q.pop();
+    out.data[p * 4 + 3] = 0;
+    const x = p % w, y = (p / w) | 0;
+    push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+  }
+  return out;
+}
+
 /** Soften residual cream-vs-shadow halo: near-bg opaque pixels next to alpha. */
 export function softenHalo(img, bg, thresh) {
   const { w, h, data } = img;

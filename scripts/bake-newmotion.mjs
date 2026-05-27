@@ -15,7 +15,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { readPNG, writePNG, subImage, detectBg, cutout, softenHalo, alphaBBox } from './lib/png.mjs';
+import { readPNG, writePNG, subImage, detectBg, cutout, cutoutChecker, softenHalo, alphaBBox } from './lib/png.mjs';
 import { detectObjects } from './lib/detect.mjs';
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '../..');
@@ -35,10 +35,7 @@ const OUT = path.join(ROOT, 'apps/web/public/assets/yule-office/new-motion');
   const dst = path.join(OUT, 'buildings');
   fs.mkdirSync(dst, { recursive: true });
   for (const f of fs.readdirSync(path.join(NM, 'buildings')).filter((f) => f.endsWith('.png'))) {
-    const img = readPNG(path.join(NM, 'buildings', f));
-    const bg = detectBg(img);
-    let c = cutout(img, { x0: 0, y0: 0, x1: img.w, y1: img.h }, bg, 30);
-    softenHalo(c, bg, 30);
+    let c = cutoutChecker(readPNG(path.join(NM, 'buildings', f)), { satTol: 12, brightMin: 222 });
     const bb = alphaBBox(c);
     if (bb) c = subImage(c, bb);
     writePNG(path.join(dst, f), c);

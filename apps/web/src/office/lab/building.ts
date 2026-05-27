@@ -76,8 +76,8 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
       this.bld = this.add.image(0, 0, `bld-${bld}`).setOrigin(0.5, 1).setScrollFactor(0).setDepth(10);
       this.bld.setInteractive({ useHandCursor: true });
       this.bld.on('pointerdown', () => this.cb.onEnterFloor?.());
-      this.bld.on('pointerover', () => this.cta?.setAlpha(1).setScale(1.06));
-      this.bld.on('pointerout', () => this.cta?.setAlpha(0.85).setScale(1));
+      this.bld.on('pointerover', () => this.cta?.setAlpha(0.95).setScale(1.04));
+      this.bld.on('pointerout', () => this.cta?.setAlpha(0.45).setScale(1));
       // weather particles (sprite-based), screen-space
       this.rain = this.add.particles(0, 0, 'wx-rain-streak', {
         x: { min: -120, max: 2600 }, y: -40, lifespan: 1100, quantity: 4, frequency: 28,
@@ -90,10 +90,11 @@ export function makeBuildingScene(Phaser: typeof import('phaser')) {
         alpha: { start: 0.92, end: 0.7 }, rotate: { min: 0, max: 360 },
       }).setScrollFactor(0).setDepth(45).setVisible(false);
       // CTA at the door
-      this.cta = this.add.text(0, 0, '▸ Enter the Lab', {
-        fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '13px', color: '#0e1320',
-        backgroundColor: '#e9c46a', padding: { x: 7, y: 3 },
-      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(60).setAlpha(0.85);
+      // subtle hint near the door — quiet by default, brightens on hover
+      this.cta = this.add.text(0, 0, 'Enter ▸', {
+        fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '11px', color: '#e6e9ef',
+        backgroundColor: 'rgba(12,16,26,0.5)', padding: { x: 6, y: 2 },
+      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(60).setAlpha(0.45);
 
       this.relayout();
       this.applyWeather();
