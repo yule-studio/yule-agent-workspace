@@ -197,32 +197,30 @@ const prop = (o) => Object.entries(o).map(([name, value]) => ({ name, type: type
 function furn(sprite, tx, ty, { scale = 0.3, z = 0 } = {}) {
   furniture.push({ id: oid++, name: sprite, type: 'furniture', x: T(tx), y: T(ty), point: true, properties: prop({ sprite, scale, z }) });
 }
-function seat(tx, ty, { role = 'member', facing = 'down', zone = 'desk' } = {}) {
-  seats.push({ id: oid++, name: `seat-${oid}`, type: 'seat', x: T(tx), y: T(ty), point: true, properties: prop({ role, facing, zone }) });
+function seat(tx, ty, { role = 'member', facing = 'down', zone = 'desk', desk = '' } = {}) {
+  const d = desk || (facing === 'down' ? 'desk_ai_back' : 'desk_ai_front');
+  seats.push({ id: oid++, name: `seat-${oid}`, type: 'seat', x: T(tx), y: T(ty), point: true, properties: prop({ role, facing, zone, desk: d }) });
 }
 function poi(name, tx, ty, tw, th, kind) {
   pois.push({ id: oid++, name, type: 'poi', x: T(tx), y: T(ty), width: T(tw), height: T(th), properties: prop({ kind }) });
 }
 function spawn(tx, ty) { spawns.push({ id: oid++, name: 'spawn', type: 'spawn', x: T(tx), y: T(ty), point: true, properties: [] }); }
 
-const DESK = 0.3, CHAIR = 0.26;
-const COLW = 4.2;   // horizontal pitch so neighbouring desks touch
-const ROWGAP = 2.9; // vertical pitch so back+front rows attach into a cubicle
+const CHAIR = 0.26;
+const COLW = 4.0;    // column pitch so neighbouring workstations touch
+const ROWSPAN = 5;   // vertical pitch between the two cubicle rows
 
 /**
- * An attached desk cluster: `cols` columns of a BACK row (top, agents above,
- * screens face away) + a FRONT row (bottom, agents below, screen visible),
- * touching into one cubicle block. No rotation — front/back are distinct sprites.
+ * A cubicle cluster: `cols` columns × two rows of workstations. The runtime
+ * renders each occupied seat as the artist's seated-at-desk composite (top row
+ * = wsfront/face, bottom row = wsback/back), and an empty desk when the agent
+ * is away. Seats only — no separate desk/chair furniture (the scene owns them).
  */
-function cluster(x0, y0, cols, role, zone = 'desk', roles = {}) {
+function cluster(x0, y0, cols, role, zone = 'desk') {
   for (let c = 0; c < cols; c++) {
     const cx = x0 + c * COLW;
-    furn(`desk_${role}_back`, cx, y0 + 1, { scale: DESK, z: 1 });
-    furn('chair_mesh_black', cx, y0 - 0.5, { scale: CHAIR, z: 0 });
-    seat(cx, y0 - 0.5, { role: roles.top ?? 'member', facing: 'down', zone });
-    furn(`desk_${role}_front`, cx, y0 + 1 + ROWGAP, { scale: DESK, z: 3 });
-    furn('chair_mesh_dark', cx, y0 + 2.6 + ROWGAP, { scale: CHAIR, z: 4 });
-    seat(cx, y0 + 2.6 + ROWGAP, { role: roles.bot ?? 'member', facing: 'up', zone });
+    seat(cx, y0, { role, facing: 'down', zone, desk: `desk_${role}_back` });
+    seat(cx, y0 + ROWSPAN, { role, facing: 'up', zone, desk: `desk_${role}_front` });
   }
 }
 
@@ -239,11 +237,9 @@ poi('eng-zone', 5, 4, 25, 20, 'desk');
 // LEAD — Tech Lead / Human Approval (orange, bottom-left): lead desk on rug,
 // visitor chairs facing it, approval board on wall, plant by door.
 for (let x = 8; x <= 20; x++) for (let y = 29; y <= 36; y++) floorLayer[y * W + x] = GID.rug;
-furn('desk_analyst_back', 13, 28, { scale: 0.34, z: 1 });
-furn('chair_exec_black', 13, 26.5, { scale: 0.3 });
-seat(13, 26.5, { role: 'lead', facing: 'down', zone: 'desk' });
-furn('chair_blue', 9, 33, { scale: CHAIR }); seat(9, 33, { role: 'visitor', facing: 'up', zone: 'approval' });
-furn('chair_green', 17, 33, { scale: CHAIR }); seat(17, 33, { role: 'visitor', facing: 'up', zone: 'approval' });
+seat(13, 28, { role: 'lead', facing: 'down', zone: 'desk', desk: 'desk_analyst_back' });
+furn('chair_blue', 9, 33, { scale: CHAIR });          // visitor chairs (decor)
+furn('chair_green', 17, 33, { scale: CHAIR });
 furn('whiteboard_blank', 6, 26.5, { scale: 0.3 });    // approval board (wall)
 furn('plant_small', 7, 36.5, { scale: 0.3 });          // door-side plant
 poi('lead-zone', 5, 25, 25, 13, 'desk');
@@ -254,10 +250,8 @@ poi('approval', 7, 31, 13, 5, 'approval');
 furn('bookshelf_wide', 44, 5.2, { scale: 0.32 });      // back wall library
 furn('bookshelf_narrow', 54, 6, { scale: 0.3 });
 furn('whiteboard_chart', 38, 5.2, { scale: 0.26 });    // roadmap board on wall
-furn('desk_analyst_front', 41, 12, { scale: 0.32, z: 3 });
-furn('chair_blue', 41, 13.4, { scale: CHAIR }); seat(41, 13.4, { role: 'product', facing: 'up', zone: 'planning-area' });
-furn('desk_designer_front', 49, 12, { scale: 0.32, z: 3 });
-furn('chair_green', 49, 13.4, { scale: CHAIR }); seat(49, 13.4, { role: 'product', facing: 'up', zone: 'planning-area' });
+seat(41, 12, { role: 'product', facing: 'down', zone: 'planning-area', desk: 'desk_analyst_front' });
+seat(49, 12, { role: 'product', facing: 'down', zone: 'planning-area', desk: 'desk_designer_front' });
 furn('globe', 55, 14, { scale: 0.3 });                 // corner globe
 poi('plan-zone', 35, 4, 21, 12, 'planning-area');
 poi('planning-area', 39, 9, 14, 5, 'planning-area');
@@ -274,10 +268,8 @@ poi('standup', 38, 18.5, 16, 5, 'meeting-room');
 furn('server_rack', 36, 27, { scale: 0.32 });          // equipment wall
 furn('monitor_flow_1', 39, 26.6, { scale: 0.24 });     // CI monitor (wall)
 furn('monitor_dashboard', 42, 26.6, { scale: 0.22 });  // deploy board (wall)
-furn('desk_backend_front', 39, 33, { scale: 0.32, z: 3 });
-furn('chair_mesh_dark', 39, 34.4, { scale: CHAIR }); seat(39, 34.4, { role: 'devops', facing: 'up', zone: 'review-table' });
-furn('desk_backend_back', 39, 31, { scale: 0.32, z: 1 });
-furn('chair_mesh_black', 39, 29.6, { scale: CHAIR }); seat(39, 29.6, { role: 'devops', facing: 'down', zone: 'review-table' });
+seat(39, 30, { role: 'devops', facing: 'down', zone: 'review-table', desk: 'desk_backend_back' });
+seat(39, 35, { role: 'devops', facing: 'up', zone: 'review-table', desk: 'desk_backend_front' });
 poi('ops-zone', 35, 25, 9, 13, 'review-table');
 poi('review-table', 36, 31, 8, 4, 'review-table');
 
@@ -287,8 +279,7 @@ furn('printer', 53, 27, { scale: 0.3 });               // utility wall
 furn('cabinet_tall', 47, 26.5, { scale: 0.3 });
 furn('watercooler', 50, 27, { scale: 0.3 });
 furn('bookshelf_narrow', 55, 31, { scale: 0.3 });
-furn('desk_designer_back', 48, 34, { scale: 0.3, z: 1 });
-furn('chair_exec_dark', 48, 32.6, { scale: CHAIR }); seat(48, 32.6, { role: 'member', facing: 'down', zone: 'focus' });
+seat(48, 33, { role: 'member', facing: 'down', zone: 'focus', desk: 'desk_designer_back' });
 furn('plant_small', 55, 36, { scale: 0.3 });
 poi('focus-zone', 45, 25, 11, 13, 'lounge');
 poi('lounge', 50, 33, 6, 4, 'lounge');
@@ -299,8 +290,9 @@ furn('watercooler', 32, 20, { scale: 0.3 });           // corridor rest point
 furn('plant_small', 32, 36.5, { scale: 0.3 });
 spawn(32, 37); spawn(33, 37);
 
-// doors object layer (animated by the runtime)
-for (const d of DOOR_META) doorsObj.push({ id: oid++, name: 'door', type: 'door', x: T(d.x) + TS / 2, y: T(d.y) + TS / 2, point: true, properties: prop({ dir: d.dir, zone: d.zone }) });
+// doors object layer (animated by the runtime). Each opening is 2 cells tall;
+// anchor the door at the opening centre so it reads as flush in the wall.
+for (const d of DOOR_META) doorsObj.push({ id: oid++, name: 'door', type: 'door', x: T(d.x) + TS / 2, y: T(d.y) + TS, point: true, properties: prop({ dir: d.dir, zone: d.zone }) });
 
 // wall collisions (doorways excluded)
 for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (wallLayer[y * W + x])
