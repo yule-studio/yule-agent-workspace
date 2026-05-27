@@ -57,16 +57,27 @@ for the implementation.
   - Door animation reference for entry/open/close transitions.
 - `references/monitor-motion.png`
   - Monitor/screen animation reference.
-- `references/time-of-day-backgrounds.png`
-  - Exterior time-of-day backgrounds for KST-driven windows/sky.
-- `references/time-of-day-building.png`
-  - Building exterior variations by time of day.
-- `references/weather-clear-elements.png`
-  - Clear weather sky/cloud/light elements.
-- `references/weather-rain-snow-cloud-elements.png`
-  - Cloud, rain, snow, puddle, sparkle overlays.
-- `references/exterior-street-props.png`
-  - Street lights, poles, traffic/exterior props.
+- `references/new-motion/backgrounds/*.png`
+  - Canonical full exterior backgrounds by time/weather. Use the full image;
+    do not crop it only to make cloud motion.
+- `references/new-motion/buildings/*.png`
+  - Canonical Yule Studio building facade variants by time/weather.
+- `references/new-motion/weather/*.png`
+  - Canonical weather/motion element sheets: rain, puddles, snow, and clouds.
+
+## Deprecated Exterior Sources
+
+The previous generated exterior sheets are no longer active. They were moved to
+`references/deprecated/exterior-legacy/` only for comparison:
+
+- `references/deprecated/exterior-legacy/time-of-day-backgrounds.png`
+- `references/deprecated/exterior-legacy/time-of-day-building.png`
+- `references/deprecated/exterior-legacy/weather-clear-elements.png`
+- `references/deprecated/exterior-legacy/weather-rain-snow-cloud-elements.png`
+- `references/deprecated/exterior-legacy/exterior-street-props.png`
+
+Do not use these for the Building view. The old traffic light, bicycle, vending
+machine, and facade/background composition should be considered discarded.
 
 ## Intended Runtime Direction
 

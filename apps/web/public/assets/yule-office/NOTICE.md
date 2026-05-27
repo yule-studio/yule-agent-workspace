@@ -13,7 +13,7 @@ Re-bake with:
 ```sh
 node scripts/bake-office-atlas.mjs   # atlas/office-objects.{png,json}
 node scripts/bake-agents.mjs         # atlas/agents.{png,json} + workstations.{png,json}
-node scripts/bake-exterior.mjs       # atlas/exterior.{png,json}
+node scripts/bake-newmotion.mjs      # Building View: new-motion/{backgrounds,buildings,weather}
 node scripts/gen-lab-map.mjs         # publish floor base image + ../../vendor/yule-office/yule-agent-lab.tmj (object-only)
 ```
 
@@ -26,11 +26,10 @@ node scripts/gen-lab-map.mjs         # publish floor base image + ../../vendor/y
   front-3/4 facing, feet-anchored. Walking / standing.
 - `atlas/workstations.{png,json}` — 18 skins × {wsfront, wsback} seated-at-desk
   composites (desk+monitor+chair+agent aligned). Occupied workstations.
-- `atlas/exterior.{png,json}` — Building view: `bld_0..4` (Yule Studio facade per
-  time of day), `sky_0..4` (full-width sky+skyline), `rain_panel`/`snow_panel`
-  (scrolling weather), `cloud_a..d`/`wcloud`/`cloud_panel`, `sun`/`moon`, `puddle`,
-  and street props (`st_lamp`/`st_bench`/`st_planter`/`st_vending`/`st_bike`/
-  `st_traffic`/`st_mailbox`/`st_plant`/`st_sign`/`st_fence`/`st_pole`).
+- `new-motion/backgrounds/*` + `new-motion/buildings/*` + `new-motion/weather/*` —
+  Building View: full city backdrops + the Yule Studio facade (checker-keyed to
+  transparent) per time-of-day/weather, lazy-loaded; cloud/rain/snow overlay
+  sprites. (No street props.)
 
 ## Source assets — used vs. reference-only
 
@@ -50,14 +49,15 @@ node scripts/gen-lab-map.mjs         # publish floor base image + ../../vendor/y
 - `seated-desk-motion-0{1,2,3}.png` → seated composites (col1 sit, col2 wsfront, col4 wsback)
 - `monitor-motion.png` → standalone monitors
 - `door-motion.png` → door swing frames
-- `time-of-day-building.png`, `time-of-day-backgrounds.png` → Building facades + skies
-- `weather-rain-snow-cloud-elements.png` → rain/snow panels + weather clouds + puddle
-- `weather-clear-elements.png` → sun / moon / fair-weather cloud
-- `exterior-street-props.png` → Building view street furniture
+- `new-motion/backgrounds/background-*.png` → Building View city backdrops (per time-of-day/weather)
+- `new-motion/buildings/building-*.png` → Building View Yule Studio facade (per time-of-day)
+- `new-motion/weather/*.png` → Building View cloud / rain-streak / snowflake overlay
 
-**Reference-only (not currently rendered):**
-- `references/deprecated/building-facade.png`, `references/deprecated/office-shell-floorplan.png`
-  — superseded by `office-shell-floorplan-v2.png` + `time-of-day-building.png`.
+**Legacy / no longer rendered (superseded by new-motion):**
+- `time-of-day-building.png`, `time-of-day-backgrounds.png`, `weather-rain-snow-cloud-elements.png`,
+  `weather-clear-elements.png`, `exterior-street-props.png` — the old Building View
+  (facades/skies/weather panels/street props). Replaced by `new-motion/`.
+- `references/deprecated/building-facade.png`, `references/deprecated/office-shell-floorplan.png`.
 - `agent-motion-04.png`, `seated-desk-motion-04.png` — extra skins beyond the 18 used.
 
 No third-party / non-redistributable assets are included.
